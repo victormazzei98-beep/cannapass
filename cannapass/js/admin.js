@@ -27,28 +27,28 @@ const Admin = (() => {
 
       <div class="stats-grid" id="admin-stats">
         <div class="stat-card">
-          <div class="stat-icon">👥</div>
+          <div class="stat-icon">${Icons['stat-patients']}</div>
           <div class="stat-info">
             <div class="stat-value" id="stat-patients">—</div>
             <div class="stat-label">Pacientes Cadastrados</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">⏳</div>
+          <div class="stat-icon">${Icons['stat-pending']}</div>
           <div class="stat-info">
             <div class="stat-value" id="stat-pending">—</div>
             <div class="stat-label">Aguardando Aprovação</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">✅</div>
+          <div class="stat-icon">${Icons['stat-verified']}</div>
           <div class="stat-info">
             <div class="stat-value" id="stat-verified">—</div>
             <div class="stat-label">Verificações Hoje</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">📱</div>
+          <div class="stat-icon">${Icons['stat-qr']}</div>
           <div class="stat-info">
             <div class="stat-value" id="stat-qr-active">—</div>
             <div class="stat-label">QR Codes Ativos</div>
@@ -113,7 +113,7 @@ const Admin = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-icon">${Icons['empty-clipboard']}</div>
             <h4>Nenhum cadastro pendente</h4>
             <p>Cadastros de pacientes aparecerão aqui quando houver novos registros.</p>
           </div>
@@ -132,7 +132,7 @@ const Admin = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">✅</div>
+            <div class="empty-state-icon">${Icons['empty-check']}</div>
             <h4>Nenhuma verificação registrada</h4>
             <p>O log de verificações aparecerá aqui.</p>
           </div>
@@ -151,7 +151,7 @@ const Admin = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">📱</div>
+            <div class="empty-state-icon">${Icons['empty-qr']}</div>
             <h4>Nenhum QR Code</h4>
             <p>QR Codes gerados aparecerão aqui.</p>
           </div>
@@ -170,7 +170,7 @@ const Admin = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">📈</div>
+            <div class="empty-state-icon">${Icons['empty-chart']}</div>
             <h4>Em construção</h4>
             <p>Export CSV e PDF será implementado na Fase 4.</p>
           </div>
@@ -189,7 +189,7 @@ const Admin = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">👥</div>
+            <div class="empty-state-icon">${Icons['empty-users']}</div>
             <h4>Em construção</h4>
             <p>A gestão de usuários será implementada na Fase 4.</p>
           </div>

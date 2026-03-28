@@ -10,19 +10,19 @@ const Toast = (() => {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
-    const icons = {
-      success: '✓',
-      error: '✕',
-      warning: '⚠',
-      info: 'ℹ'
+    const toastIcons = {
+      success: Icons.success,
+      error: Icons.error,
+      warning: Icons.warning,
+      info: Icons.info
     };
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `
-      <span class="toast-icon">${icons[type] || icons.info}</span>
-      <span class="toast-message">${sanitizeHTML(message)}</span>
-      <button class="toast-close" aria-label="Fechar">✕</button>
+      <span class="toast-icon">${toastIcons[type] || toastIcons.info}</span>
+      <span class="toast-msg">${sanitizeHTML(message)}</span>
+      <button class="toast-close" aria-label="Fechar">${Icons.x}</button>
     `;
 
     toast.querySelector('.toast-close').addEventListener('click', () => dismiss(toast));
@@ -35,7 +35,7 @@ const Toast = (() => {
 
   function dismiss(toast) {
     if (toast._timer) clearTimeout(toast._timer);
-    toast.classList.add('toast-exit');
+    toast.classList.add('removing');
     toast.addEventListener('animationend', () => toast.remove());
   }
 
@@ -293,9 +293,9 @@ const Theme = (() => {
 
   function updateToggleIcon(theme) {
     const btn = document.getElementById('theme-toggle');
-    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (btn) btn.innerHTML = theme === 'dark' ? Icons.sun : Icons.moon;
     const btnAuth = document.getElementById('theme-toggle-auth');
-    if (btnAuth) btnAuth.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (btnAuth) btnAuth.innerHTML = theme === 'dark' ? Icons.sun : Icons.moon;
   }
 
   return { init, toggle };

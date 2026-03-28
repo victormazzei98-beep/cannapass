@@ -11,27 +11,53 @@ const Auth = (() => {
 
     // Listen for auth state changes
     sb.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        await loadUserData(session.user);
-        hideLoading();
-        showApp();
-        Router.init();
-      } else if (event === 'SIGNED_OUT') {
-        State.reset();
+      console.log('[Auth] State change:', event);
+      try {
+        if (event === 'SIGNED_IN' && session) {
+          await loadUserData(session.user);
+          hideLoading();
+          showApp();
+          Router.init();
+        } else if (event === 'SIGNED_OUT') {
+          State.reset();
+          hideLoading();
+          showAuth();
+          resetForms();
+        } else if (event === 'PASSWORD_RECOVERY') {
+          // User clicked the reset link in their email
+          hideLoading();
+          showAuth();
+          showAuthPanel('auth-reset');
+        } else if (event === 'INITIAL_SESSION') {
+          // Handled by getSession() below — do nothing
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Token refreshed silently, update user data
+          State.set('user', session.user);
+        } else {
+          // Unknown event — ensure loading is hidden
+          hideLoading();
+        }
+      } catch (err) {
+        console.error('[Auth] State change error:', err);
         hideLoading();
         showAuth();
-        resetForms();
       }
     });
 
     // Check existing session
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      await loadUserData(session.user);
-      hideLoading();
-      showApp();
-      Router.init();
-    } else {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        await loadUserData(session.user);
+        hideLoading();
+        showApp();
+        Router.init();
+      } else {
+        hideLoading();
+        showAuth();
+      }
+    } catch (err) {
+      console.error('[Auth] Session check error:', err);
       hideLoading();
       showAuth();
     }
@@ -137,22 +163,179 @@ const Auth = (() => {
     return data;
   }
 
-  // ─── Logout ───
-  async function logout() {
-    const confirmed = await Modal.open({
-      title: 'Sair da conta',
-      body: 'Tem certeza que deseja sair?',
-      confirmText: 'Sair',
-      cancelText: 'Cancelar',
-      danger: true
+  // ─── Forgot Password (send reset email) ───
+  async function forgotPassword(email) {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://cannapass.vercel.app'
     });
 
-    if (!confirmed) return;
-
-    const { error } = await sb.auth.signOut();
     if (error) {
-      Toast.error('Erro ao sair. Tente novamente.');
-      console.error('[Auth] Logout error:', error);
+      if (error.message.includes('rate limit')) {
+        throw new Error('Muitas tentativas. Aguarde alguns minutos.');
+      }
+      throw new Error(error.message);
+    }
+  }
+
+  // ─── Reset Password (from email link — PASSWORD_RECOVERY event) ───
+  async function resetPassword(newPassword) {
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  // ─── Change Password (logged-in user) ───
+  async function changePassword(newPassword) {
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  // ─── Show in-app Change Password Modal ───
+  async function showChangePasswordModal() {
+    const overlay = document.getElementById('modal-overlay');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const confirmBtn = document.getElementById('modal-confirm');
+    const cancelBtn = document.getElementById('modal-cancel');
+
+    if (!overlay) return;
+
+    modalTitle.textContent = 'Alterar Senha';
+    modalBody.innerHTML = `
+      <div class="form-stack">
+        <div class="form-group">
+          <label class="form-label" for="modal-new-password">Nova senha</label>
+          <div class="password-wrapper">
+            <input class="form-input" type="password" id="modal-new-password" placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password">
+            <span class="password-toggle" role="button" tabindex="0" aria-label="Mostrar senha">${Icons['eye-open']}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modal-confirm-password">Confirmar nova senha</label>
+          <div class="password-wrapper">
+            <input class="form-input" type="password" id="modal-confirm-password" placeholder="Repita a nova senha" minlength="6" autocomplete="new-password">
+            <span class="password-toggle" role="button" tabindex="0" aria-label="Mostrar senha">${Icons['eye-open']}</span>
+          </div>
+        </div>
+        <div id="modal-password-error" class="auth-error" role="alert"></div>
+      </div>
+    `;
+    confirmBtn.textContent = 'Salvar';
+    cancelBtn.textContent = 'Cancelar';
+    confirmBtn.className = 'btn btn-primary';
+
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Setup password toggles inside modal
+    overlay.querySelectorAll('.password-toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const input = toggle.previousElementSibling;
+        if (input.type === 'password') {
+          input.type = 'text';
+          toggle.innerHTML = Icons['eye-closed'];
+        } else {
+          input.type = 'password';
+          toggle.innerHTML = Icons['eye-open'];
+        }
+      });
+    });
+
+    return new Promise(resolve => {
+      const cleanup = () => {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+        confirmBtn.removeEventListener('click', onConfirm);
+        cancelBtn.removeEventListener('click', onCancel);
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onEscape);
+      };
+
+      const onCancel = () => { cleanup(); resolve(false); };
+      const onOverlay = (e) => { if (e.target === overlay) { cleanup(); resolve(false); } };
+      const onEscape = (e) => { if (e.key === 'Escape') { cleanup(); resolve(false); } };
+
+      const onConfirm = async () => {
+        const newPwd = document.getElementById('modal-new-password').value;
+        const confirmPwd = document.getElementById('modal-confirm-password').value;
+        const errorEl = document.getElementById('modal-password-error');
+
+        // Validate
+        if (!newPwd || newPwd.length < 6) {
+          errorEl.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+          errorEl.classList.add('visible');
+          return;
+        }
+        if (newPwd !== confirmPwd) {
+          errorEl.textContent = 'As senhas não coincidem.';
+          errorEl.classList.add('visible');
+          return;
+        }
+
+        confirmBtn.classList.add('btn-loading');
+        confirmBtn.disabled = true;
+
+        try {
+          await changePassword(newPwd);
+          cleanup();
+          Toast.success('Senha alterada com sucesso!');
+          resolve(true);
+        } catch (err) {
+          errorEl.textContent = err.message || 'Erro ao alterar senha.';
+          errorEl.classList.add('visible');
+        } finally {
+          confirmBtn.classList.remove('btn-loading');
+          confirmBtn.disabled = false;
+        }
+      };
+
+      confirmBtn.addEventListener('click', onConfirm);
+      cancelBtn.addEventListener('click', onCancel);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onEscape);
+    });
+  }
+
+  // ─── Show Auth Panels Helper ───
+  function showAuthPanel(panelId) {
+    ['auth-login', 'auth-signup', 'auth-forgot', 'auth-reset'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', id !== panelId);
+    });
+    // Show/hide footer (only for login and signup)
+    const footer = document.getElementById('auth-footer');
+    if (footer) footer.classList.toggle('hidden', panelId !== 'auth-login' && panelId !== 'auth-signup');
+  }
+
+  // ─── Logout ───
+  async function logout() {
+    try {
+      const confirmed = await Modal.open({
+        title: 'Sair da conta',
+        body: 'Tem certeza que deseja sair?',
+        confirmText: 'Sair',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+
+      if (!confirmed) return;
+
+      showLoading();
+
+      const { error } = await sb.auth.signOut();
+      if (error) {
+        hideLoading();
+        Toast.error('Erro ao sair. Tente novamente.');
+        console.error('[Auth] Logout error:', error);
+      }
+      // SIGNED_OUT event in onAuthStateChange will handle hideLoading + showAuth
+    } catch (err) {
+      console.error('[Auth] Logout error:', err);
+      hideLoading();
+      showAuth();
     }
   }
 
@@ -258,16 +441,100 @@ const Auth = (() => {
     // Toggle login/signup
     document.getElementById('auth-footer-link')?.addEventListener('click', toggleAuthMode);
 
+    // Forgot password link
+    document.getElementById('forgot-password-link')?.addEventListener('click', () => {
+      showAuthPanel('auth-forgot');
+      clearAuthError('forgot-error');
+    });
+
+    // Back to login from forgot
+    document.getElementById('back-to-login-link')?.addEventListener('click', () => {
+      showAuthPanel('auth-login');
+    });
+
+    // Forgot password form submit
+    const forgotForm = document.getElementById('forgot-form');
+    forgotForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email').value.trim();
+      const btn = document.getElementById('forgot-btn');
+
+      if (!validateEmail(email)) {
+        showAuthError('forgot-error', 'E-mail inválido.');
+        return;
+      }
+
+      clearAuthError('forgot-error');
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        await forgotPassword(email);
+        Toast.success('Link de recuperação enviado! Verifique seu e-mail.');
+        showAuthPanel('auth-login');
+      } catch (err) {
+        showAuthError('forgot-error', err.message);
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    });
+
+    // Reset password form submit (after clicking email link)
+    const resetForm = document.getElementById('reset-form');
+    resetForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newPwd = document.getElementById('reset-password').value;
+      const confirmPwd = document.getElementById('reset-password-confirm').value;
+      const btn = document.getElementById('reset-btn');
+
+      if (newPwd.length < 6) {
+        showAuthError('reset-error', 'A senha deve ter no mínimo 6 caracteres.');
+        return;
+      }
+      if (newPwd !== confirmPwd) {
+        showAuthError('reset-error', 'As senhas não coincidem.');
+        return;
+      }
+
+      clearAuthError('reset-error');
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        await resetPassword(newPwd);
+        Toast.success('Senha redefinida com sucesso! Você já está logado.');
+        // User is now signed in via the recovery token
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          await loadUserData(session.user);
+          hideLoading();
+          showApp();
+          Router.init();
+        } else {
+          showAuthPanel('auth-login');
+        }
+      } catch (err) {
+        showAuthError('reset-error', err.message);
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    });
+
+    // Change password button (in-app, sidebar)
+    document.getElementById('change-password-btn')?.addEventListener('click', showChangePasswordModal);
+
     // Password toggles
     document.querySelectorAll('.password-toggle').forEach(toggle => {
       toggle.addEventListener('click', () => {
         const input = toggle.previousElementSibling;
         if (input.type === 'password') {
           input.type = 'text';
-          toggle.textContent = '🙈';
+          toggle.innerHTML = Icons['eye-closed'];
         } else {
           input.type = 'password';
-          toggle.textContent = '👁';
+          toggle.innerHTML = Icons['eye-open'];
         }
       });
       toggle.addEventListener('keydown', (e) => {
@@ -299,20 +566,15 @@ const Auth = (() => {
   // ─── Toggle Login/Signup Mode ───
   function toggleAuthMode() {
     const loginDiv = document.getElementById('auth-login');
-    const signupDiv = document.getElementById('auth-signup');
     const footerText = document.getElementById('auth-footer-text');
     const footerLink = document.getElementById('auth-footer-link');
 
     if (loginDiv.classList.contains('hidden')) {
-      // Switch to login
-      loginDiv.classList.remove('hidden');
-      signupDiv.classList.add('hidden');
+      showAuthPanel('auth-login');
       footerText.textContent = 'Não tem uma conta?';
       footerLink.textContent = 'Criar conta';
     } else {
-      // Switch to signup
-      loginDiv.classList.add('hidden');
-      signupDiv.classList.remove('hidden');
+      showAuthPanel('auth-signup');
       footerText.textContent = 'Já tem uma conta?';
       footerLink.textContent = 'Entrar';
     }
@@ -339,17 +601,22 @@ const Auth = (() => {
   function resetForms() {
     document.getElementById('login-form')?.reset();
     document.getElementById('signup-form')?.reset();
-    document.getElementById('signup-role').value = '';
+    document.getElementById('forgot-form')?.reset();
+    document.getElementById('reset-form')?.reset();
+    const roleInput = document.getElementById('signup-role');
+    if (roleInput) roleInput.value = '';
     document.querySelectorAll('.auth-role-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('signup-btn').disabled = true;
+    const signupBtn = document.getElementById('signup-btn');
+    if (signupBtn) signupBtn.disabled = true;
     clearAuthError('auth-error');
     clearAuthError('signup-error');
+    clearAuthError('forgot-error');
+    clearAuthError('reset-error');
     // Ensure login mode
-    document.getElementById('auth-login')?.classList.remove('hidden');
-    document.getElementById('auth-signup')?.classList.add('hidden');
+    showAuthPanel('auth-login');
   }
 
-  return { init, logout, loadUserData };
+  return { init, logout, loadUserData, changePassword: showChangePasswordModal };
 })();
 
 // ─── Boot ───

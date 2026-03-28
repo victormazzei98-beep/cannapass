@@ -121,7 +121,20 @@
   border-radius: 0 3px 3px 0;
 }
 
-.sidebar-nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-nav-icon {
+  width: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.7;
+}
+.sidebar-nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.sidebar-nav-item.active .sidebar-nav-icon { opacity: 1; }
 .sidebar-nav-label { flex: 1; }
 .sidebar-nav-badge {
   font-size: 10px;

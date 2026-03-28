@@ -226,8 +226,10 @@
   transform: translateY(-50%);
   cursor: pointer;
   color: var(--muted);
-  font-size: 16px;
   padding: 4px;
   transition: color var(--transition-fast);
+  display: flex;
+  align-items: center;
 }
+.password-toggle svg { width: 18px; height: 18px; }
 .password-toggle:hover { color: var(--text); }

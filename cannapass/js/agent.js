@@ -24,7 +24,7 @@ const Agent = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">📷</div>
+            <div class="empty-state-icon">${Icons['empty-camera']}</div>
             <h4>Em construção</h4>
             <p>O scanner com câmera será implementado na Fase 3.</p>
           </div>
@@ -43,7 +43,7 @@ const Agent = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-icon">${Icons['empty-search']}</div>
             <h4>Em construção</h4>
             <p>A busca manual será implementada na Fase 3.</p>
           </div>
@@ -62,7 +62,7 @@ const Agent = (() => {
       <div class="card">
         <div class="card-body">
           <div class="empty-state">
-            <div class="empty-state-icon">🕐</div>
+            <div class="empty-state-icon">${Icons['empty-clock']}</div>
             <h4>Nenhuma verificação</h4>
             <p>Seu histórico aparecerá aqui após sua primeira verificação.</p>
           </div>

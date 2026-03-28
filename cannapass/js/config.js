@@ -26,8 +26,8 @@ const STATUS = Object.freeze({
 
 // ─── Via Type (how patient obtains cannabis) ───
 const VIA = Object.freeze({
-  PHARMACY: 'farmacia_associacao',
-  HABEAS: 'habeas_corpus'
+  PHARMACY: 'pharmacy',
+  HABEAS: 'hc'
 });
 
 // ─── Document Types ───

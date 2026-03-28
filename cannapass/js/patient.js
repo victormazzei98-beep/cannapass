@@ -10,8 +10,7 @@ const Patient = (() => {
   let wizardData = {
     full_name: '', cpf: '', birth_date: '', email: '', phone: '',
     via_type: '',
-    documents: {},
-    product_type: '', product_name: '', dosage: '', total_quantity: '', transport_quantity: ''
+    documents: {}
   };
   let uploadedFiles = {};
 
@@ -43,28 +42,28 @@ const Patient = (() => {
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon">📋</div>
+          <div class="stat-icon">${Icons['stat-status']}</div>
           <div class="stat-info">
             <div class="stat-value">${status === 'none' ? 'Não iniciado' : getStatusLabel(status)}</div>
             <div class="stat-label">Status do Cadastro</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">📄</div>
+          <div class="stat-icon">${Icons['stat-docs']}</div>
           <div class="stat-info">
             <div class="stat-value" id="doc-count">—</div>
             <div class="stat-label">Documentos Enviados</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">📱</div>
+          <div class="stat-icon">${Icons['stat-qr']}</div>
           <div class="stat-info">
             <div class="stat-value" id="qr-count">—</div>
             <div class="stat-label">QR Codes Ativos</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">✈️</div>
+          <div class="stat-icon">${Icons['stat-travel']}</div>
           <div class="stat-info">
             <div class="stat-value" id="trip-count">—</div>
             <div class="stat-label">Viagens Registradas</div>
@@ -78,34 +77,34 @@ const Patient = (() => {
           <div class="card-body">
             ${status === 'none' || !patient ? `
               <div class="empty-state">
-                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-icon">${Icons['empty-clipboard']}</div>
                 <h4>Comece seu cadastro</h4>
                 <p>Preencha seus dados para obter seu QR Code de transporte.</p>
                 <button class="btn btn-primary mt-md" onclick="Router.navigate('cadastro')">Iniciar Cadastro</button>
               </div>
             ` : status === STATUS.DRAFT ? `
               <div class="empty-state">
-                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-icon">${Icons['empty-clipboard']}</div>
                 <h4>Continue seu cadastro</h4>
                 <p>Seu cadastro está incompleto. Continue de onde parou.</p>
                 <button class="btn btn-primary mt-md" onclick="Router.navigate('cadastro')">Continuar Cadastro</button>
               </div>
             ` : status === STATUS.PENDING ? `
               <div class="empty-state">
-                <div class="empty-state-icon">⏳</div>
+                <div class="empty-state-icon">${Icons['empty-clock']}</div>
                 <h4>Cadastro em Análise</h4>
                 <p>Seu cadastro está sendo analisado pela equipe Cannapass. Você será notificado quando for aprovado.</p>
               </div>
             ` : status === STATUS.APPROVED ? `
               <div class="empty-state">
-                <div class="empty-state-icon">✅</div>
+                <div class="empty-state-icon">${Icons['empty-check']}</div>
                 <h4>Cadastro Aprovado!</h4>
                 <p>Registre uma viagem para gerar seu QR Code.</p>
                 <button class="btn btn-primary mt-md" onclick="Router.navigate('viagem')">Registrar Viagem</button>
               </div>
             ` : `
               <div class="empty-state">
-                <div class="empty-state-icon">❌</div>
+                <div class="empty-state-icon">${Icons.error}</div>
                 <h4>Cadastro Rejeitado</h4>
                 <p>Motivo: ${sanitizeHTML(patient?.rejection_reason || 'Não informado')}. Corrija e reenvie.</p>
                 <button class="btn btn-primary mt-md" onclick="Router.navigate('cadastro')">Corrigir Cadastro</button>
@@ -142,16 +141,11 @@ const Patient = (() => {
       wizardData = {
         full_name: patient.full_name || '',
         cpf: patient.cpf || '',
-        birth_date: patient.birth_date || '',
+        birth_date: patient.date_of_birth || '',
         email: patient.email || State.get('profile')?.email || '',
         phone: patient.phone || '',
-        via_type: patient.via_type || '',
-        documents: {},
-        product_type: patient.product_type || '',
-        product_name: patient.product_name || '',
-        dosage: patient.dosage || '',
-        total_quantity: patient.total_quantity || '',
-        transport_quantity: patient.transport_quantity || ''
+        via_type: patient.via || '',
+        documents: {}
       };
     } else {
       const profile = State.get('profile');
@@ -162,7 +156,7 @@ const Patient = (() => {
     container.innerHTML = `
       <div class="page-header">
         <h2>Cadastro</h2>
-        <p>Preencha seus dados em 5 etapas para obter seu QR Code</p>
+        <p>Preencha seus dados para obter seu QR Code</p>
       </div>
 
       <!-- Stepper -->
@@ -182,11 +176,10 @@ const Patient = (() => {
   }
 
   const WIZARD_STEPS = [
-    { label: 'Dados Pessoais', icon: '👤' },
-    { label: 'Via de Acesso', icon: '📋' },
-    { label: 'Documentos', icon: '📄' },
-    { label: 'Produto', icon: '💊' },
-    { label: 'Revisão', icon: '✅' }
+    { label: 'Dados Pessoais', icon: '1' },
+    { label: 'Via de Acesso', icon: '2' },
+    { label: 'Documentos', icon: '3' },
+    { label: 'Revisão', icon: '4' }
   ];
 
   function renderStepper() {
@@ -214,16 +207,15 @@ const Patient = (() => {
     // Button visibility
     if (prevBtn) prevBtn.style.visibility = wizardStep === 1 ? 'hidden' : 'visible';
     if (nextBtn) {
-      nextBtn.textContent = wizardStep === 5 ? 'Enviar Cadastro' : 'Próximo';
-      nextBtn.className = wizardStep === 5 ? 'btn btn-primary btn-lg' : 'btn btn-primary';
+      nextBtn.textContent = wizardStep === 4 ? 'Enviar Cadastro' : 'Próximo';
+      nextBtn.className = wizardStep === 4 ? 'btn btn-primary btn-lg' : 'btn btn-primary';
     }
 
     switch (wizardStep) {
       case 1: renderStep1(content); break;
       case 2: renderStep2(content); break;
       case 3: renderStep3(content); break;
-      case 4: renderStep4(content); break;
-      case 5: renderStep5(content); break;
+      case 4: renderStep5(content); break;
     }
   }
 
@@ -296,12 +288,12 @@ const Patient = (() => {
       <p class="text-muted mb-lg">Como você obtém seu produto à base de cannabis?</p>
       <div class="via-cards">
         <div class="via-card ${wizardData.via_type === VIA.PHARMACY ? 'selected' : ''}" data-via="${VIA.PHARMACY}">
-          <div class="via-card-icon">🏥</div>
+          <div class="via-card-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
           <h4>Farmácia / Associação</h4>
           <p>Produto adquirido em farmácia autorizada ou associação de pacientes</p>
         </div>
         <div class="via-card ${wizardData.via_type === VIA.HABEAS ? 'selected' : ''}" data-via="${VIA.HABEAS}">
-          <div class="via-card-icon">⚖️</div>
+          <div class="via-card-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/><path d="M12 2v2"/><path d="M12 20v2"/></svg></div>
           <h4>Habeas Corpus</h4>
           <p>Autorização judicial para cultivo ou porte de cannabis medicinal</p>
         </div>
@@ -329,7 +321,7 @@ const Patient = (() => {
       <div class="form-group mb-lg">
         <label class="form-label">Documento de Identidade (RG ou CNH) *</label>
         <div class="upload-zone" id="upload-identity" data-doc-type="${DOC_TYPES.IDENTITY}">
-          <div class="upload-zone-icon">📎</div>
+          <div class="upload-zone-icon">${Icons.upload}</div>
           <div class="upload-zone-text">
             ${uploadedFiles[DOC_TYPES.IDENTITY]
               ? `<strong class="text-green">✓ ${sanitizeHTML(uploadedFiles[DOC_TYPES.IDENTITY].name)}</strong><br><span class="text-xs text-muted">${formatFileSize(uploadedFiles[DOC_TYPES.IDENTITY].size)}</span>`
@@ -343,7 +335,7 @@ const Patient = (() => {
       <div class="form-group">
         <label class="form-label">${isPharmacy ? 'Prescrição Médica *' : 'Decisão Judicial (Habeas Corpus) *'}</label>
         <div class="upload-zone" id="upload-main" data-doc-type="${isPharmacy ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL}">
-          <div class="upload-zone-icon">📎</div>
+          <div class="upload-zone-icon">${Icons.upload}</div>
           <div class="upload-zone-text">
             ${uploadedFiles[isPharmacy ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL]
               ? `<strong class="text-green">✓ ${sanitizeHTML(uploadedFiles[isPharmacy ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL].name)}</strong><br><span class="text-xs text-muted">${formatFileSize(uploadedFiles[isPharmacy ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL].size)}</span>`
@@ -359,6 +351,8 @@ const Patient = (() => {
       const input = zone.querySelector('input[type="file"]');
       const docType = input.dataset.docType;
 
+      // Prevent click on input from bubbling back to zone (infinite loop)
+      input.addEventListener('click', (e) => e.stopPropagation());
       zone.addEventListener('click', () => input.click());
       zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
       zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
@@ -392,48 +386,7 @@ const Patient = (() => {
     Toast.success('Arquivo selecionado com sucesso.');
   }
 
-  // ─── Step 4: Product Info ───
-  function renderStep4(container) {
-    container.innerHTML = `
-      <h3 class="mb-md">Produto e Quantidade</h3>
-      <div class="form-stack">
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label" for="w-product-type">Tipo de Produto *</label>
-            <select class="form-select" id="w-product-type">
-              <option value="">Selecione...</option>
-              <option value="oleo" ${wizardData.product_type === 'oleo' ? 'selected' : ''}>Óleo</option>
-              <option value="capsula" ${wizardData.product_type === 'capsula' ? 'selected' : ''}>Cápsula</option>
-              <option value="flor" ${wizardData.product_type === 'flor' ? 'selected' : ''}>Flor (in natura)</option>
-              <option value="extrato" ${wizardData.product_type === 'extrato' ? 'selected' : ''}>Extrato</option>
-              <option value="tintura" ${wizardData.product_type === 'tintura' ? 'selected' : ''}>Tintura</option>
-              <option value="outro" ${wizardData.product_type === 'outro' ? 'selected' : ''}>Outro</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="w-product-name">Nome do Produto *</label>
-            <input class="form-input" type="text" id="w-product-name" value="${sanitizeHTML(wizardData.product_name)}" placeholder="Ex: CBD Oil 3000mg">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="w-dosage">Dosagem / Concentração</label>
-          <input class="form-input" type="text" id="w-dosage" value="${sanitizeHTML(wizardData.dosage)}" placeholder="Ex: 100mg/ml CBD, 5mg/ml THC">
-        </div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label" for="w-total-qty">Quantidade Total Prescrita *</label>
-            <input class="form-input" type="text" id="w-total-qty" value="${sanitizeHTML(wizardData.total_quantity)}" placeholder="Ex: 3 frascos de 30ml">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="w-transport-qty">Quantidade em Transporte *</label>
-            <input class="form-input" type="text" id="w-transport-qty" value="${sanitizeHTML(wizardData.transport_quantity)}" placeholder="Ex: 1 frasco de 30ml">
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ─── Step 5: Review ───
+  // ─── Step 4: Review ───
   function renderStep5(container) {
     container.innerHTML = `
       <h3 class="mb-lg">Revisão do Cadastro</h3>
@@ -469,14 +422,6 @@ const Patient = (() => {
         </div>
       </div>
 
-      <div class="review-section">
-        <h4>Produto</h4>
-        <div class="review-row"><span class="review-row-label">Tipo</span><span class="review-row-value">${sanitizeHTML(wizardData.product_type)}</span></div>
-        <div class="review-row"><span class="review-row-label">Nome</span><span class="review-row-value">${sanitizeHTML(wizardData.product_name)}</span></div>
-        <div class="review-row"><span class="review-row-label">Dosagem</span><span class="review-row-value">${sanitizeHTML(wizardData.dosage || '—')}</span></div>
-        <div class="review-row"><span class="review-row-label">Qtd. Total</span><span class="review-row-value">${sanitizeHTML(wizardData.total_quantity)}</span></div>
-        <div class="review-row"><span class="review-row-label">Qtd. Transporte</span><span class="review-row-value">${sanitizeHTML(wizardData.transport_quantity)}</span></div>
-      </div>
     `;
   }
 
@@ -490,13 +435,7 @@ const Patient = (() => {
         wizardData.email = document.getElementById('w-email')?.value.trim() || '';
         wizardData.phone = document.getElementById('w-phone')?.value.replace(/\D/g, '') || '';
         break;
-      case 4:
-        wizardData.product_type = document.getElementById('w-product-type')?.value || '';
-        wizardData.product_name = document.getElementById('w-product-name')?.value.trim() || '';
-        wizardData.dosage = document.getElementById('w-dosage')?.value.trim() || '';
-        wizardData.total_quantity = document.getElementById('w-total-qty')?.value.trim() || '';
-        wizardData.transport_quantity = document.getElementById('w-transport-qty')?.value.trim() || '';
-        break;
+      // Product data collected during travel registration, not here
     }
   }
 
@@ -523,12 +462,6 @@ const Patient = (() => {
         return true;
       }
       case 4:
-        if (!wizardData.product_type) { Toast.error('Selecione o tipo de produto.'); return false; }
-        if (!wizardData.product_name) { Toast.error('Informe o nome do produto.'); return false; }
-        if (!wizardData.total_quantity) { Toast.error('Informe a quantidade total prescrita.'); return false; }
-        if (!wizardData.transport_quantity) { Toast.error('Informe a quantidade em transporte.'); return false; }
-        return true;
-      case 5:
         return true;
       default:
         return true;
@@ -540,7 +473,7 @@ const Patient = (() => {
     collectStepData();
     if (!validateStep()) return;
 
-    if (wizardStep === 5) {
+    if (wizardStep === 4) {
       submitRegistration();
       return;
     }
@@ -578,20 +511,15 @@ const Patient = (() => {
         docUploads.push({ docType, filePath, fileName: file.name, fileSize: file.size, mimeType: file.type });
       }
 
-      // 2. Upsert patient record
+      // 2. Upsert patient record (product info is added later during travel registration)
       const patientData = {
         user_id: userId,
         full_name: wizardData.full_name,
         cpf: wizardData.cpf,
-        birth_date: wizardData.birth_date,
+        date_of_birth: wizardData.birth_date,
         email: wizardData.email,
         phone: wizardData.phone,
-        via_type: wizardData.via_type,
-        product_type: wizardData.product_type,
-        product_name: wizardData.product_name,
-        dosage: wizardData.dosage,
-        total_quantity: wizardData.total_quantity,
-        transport_quantity: wizardData.transport_quantity,
+        via: wizardData.via_type,
         status: STATUS.PENDING
       };
 
@@ -662,7 +590,7 @@ const Patient = (() => {
     if (error || !docs?.length) {
       list.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">📄</div>
+          <div class="empty-state-icon">${Icons['empty-doc']}</div>
           <h4>Nenhum documento</h4>
           <p>Complete seu cadastro para enviar documentos.</p>
         </div>
@@ -717,7 +645,7 @@ const Patient = (() => {
         <div class="card">
           <div class="card-body">
             <div class="empty-state">
-              <div class="empty-state-icon">⚠️</div>
+              <div class="empty-state-icon">${Icons.warning}</div>
               <h4>Cadastro não aprovado</h4>
               <p>Seu cadastro precisa estar aprovado para registrar uma viagem.</p>
               <button class="btn btn-primary mt-md" onclick="Router.navigate('dashboard')">Ver Dashboard</button>
@@ -893,7 +821,7 @@ const Patient = (() => {
         <div class="card">
           <div class="card-body">
             <div class="empty-state">
-              <div class="empty-state-icon">📱</div>
+              <div class="empty-state-icon">${Icons['empty-qr']}</div>
               <h4>Nenhum QR Code ativo</h4>
               <p>Registre uma viagem para gerar seu QR Code.</p>
               ${State.get('patient')?.status === STATUS.APPROVED ? `
@@ -915,7 +843,7 @@ const Patient = (() => {
         <canvas id="qr-canvas"></canvas>
 
         <div class="qr-expiry ${isExpired ? 'expired' : 'valid'}">
-          ${isExpired ? '⚠️ QR Code expirado' : `✅ Válido até ${formatDate(qr.expires_at)}`}
+          ${isExpired ? `${Icons.warning} QR Code expirado` : `${Icons.success} Válido até ${formatDate(qr.expires_at)}`}
         </div>
 
         <div class="qr-meta">
@@ -979,7 +907,7 @@ const Patient = (() => {
     if (error || !travels?.length) {
       content.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🕐</div>
+          <div class="empty-state-icon">${Icons['empty-clock']}</div>
           <h4>Nenhum registro</h4>
           <p>Seu histórico aparecerá aqui após sua primeira viagem.</p>
         </div>

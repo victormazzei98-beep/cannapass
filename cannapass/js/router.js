@@ -10,26 +10,26 @@ const Router = (() => {
   // ─── Route Definitions by Role ───
   const ROUTES = {
     [ROLES.PATIENT]: [
-      { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'Principal' },
-      { id: 'cadastro', icon: '📋', label: 'Cadastro', section: 'Principal' },
-      { id: 'documentos', icon: '📄', label: 'Documentos', section: 'Principal' },
-      { id: 'viagem', icon: '✈️', label: 'Viagem', section: 'QR Code' },
-      { id: 'qrcode', icon: '📱', label: 'Meu QR Code', section: 'QR Code' },
-      { id: 'historico', icon: '🕐', label: 'Histórico', section: 'QR Code' }
+      { id: 'dashboard', icon: Icons.dashboard, label: 'Dashboard', section: 'Principal' },
+      { id: 'cadastro', icon: Icons.cadastro, label: 'Cadastro', section: 'Principal' },
+      { id: 'documentos', icon: Icons.documentos, label: 'Documentos', section: 'Principal' },
+      { id: 'viagem', icon: Icons.viagem, label: 'Viagem', section: 'QR Code' },
+      { id: 'qrcode', icon: Icons.qrcode, label: 'Meu QR Code', section: 'QR Code' },
+      { id: 'historico', icon: Icons.historico, label: 'Histórico', section: 'QR Code' }
     ],
     [ROLES.AGENT]: [
-      { id: 'scanner', icon: '📷', label: 'Scanner', section: 'Verificação' },
-      { id: 'busca', icon: '🔍', label: 'Busca Manual', section: 'Verificação' },
-      { id: 'historico-agent', icon: '🕐', label: 'Histórico', section: 'Registros' },
-      { id: 'guia', icon: '📖', label: 'Guia', section: 'Suporte' }
+      { id: 'scanner', icon: Icons.scanner, label: 'Scanner', section: 'Verificação' },
+      { id: 'busca', icon: Icons.busca, label: 'Busca Manual', section: 'Verificação' },
+      { id: 'historico-agent', icon: Icons.historico, label: 'Histórico', section: 'Registros' },
+      { id: 'guia', icon: Icons.guia, label: 'Guia', section: 'Suporte' }
     ],
     [ROLES.ADMIN]: [
-      { id: 'admin-dashboard', icon: '📊', label: 'Dashboard', section: 'Principal' },
-      { id: 'cadastros', icon: '📋', label: 'Cadastros', section: 'Gestão' },
-      { id: 'verificacoes', icon: '✅', label: 'Verificações', section: 'Gestão' },
-      { id: 'qr-management', icon: '📱', label: 'QR Codes', section: 'Gestão' },
-      { id: 'relatorios', icon: '📈', label: 'Relatórios', section: 'Sistema' },
-      { id: 'usuarios', icon: '👥', label: 'Usuários', section: 'Sistema' }
+      { id: 'admin-dashboard', icon: Icons.dashboard, label: 'Dashboard', section: 'Principal' },
+      { id: 'cadastros', icon: Icons.cadastro, label: 'Cadastros', section: 'Gestão' },
+      { id: 'verificacoes', icon: Icons.verificacoes, label: 'Verificações', section: 'Gestão' },
+      { id: 'qr-management', icon: Icons.qrcode, label: 'QR Codes', section: 'Gestão' },
+      { id: 'relatorios', icon: Icons.relatorios, label: 'Relatórios', section: 'Sistema' },
+      { id: 'usuarios', icon: Icons.usuarios, label: 'Usuários', section: 'Sistema' }
     ]
   };
 
@@ -252,7 +252,7 @@ const Router = (() => {
       publicDiv.innerHTML = `
         <div class="public-verification-card card">
           <div class="card-body text-center">
-            <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+            <div class="empty-state-icon">${Icons.error}</div>
             <h3>Erro na Verificação</h3>
             <p class="text-muted mt-sm">Não foi possível verificar este QR Code. Tente novamente.</p>
           </div>
@@ -267,7 +267,7 @@ const Router = (() => {
       container.innerHTML = `
         <div class="public-verification-card card">
           <div class="card-body text-center">
-            <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+            <div class="empty-state-icon">${Icons.error}</div>
             <h3>QR Code Inválido</h3>
             <p class="text-muted mt-sm">Este QR Code não foi encontrado no sistema Cannapass.</p>
           </div>
@@ -278,7 +278,7 @@ const Router = (() => {
 
     const isExpired = data.qr_status !== 'active' || (data.departure_date && !isFutureDate(data.departure_date));
     const statusClass = isExpired ? 'expired' : 'valid';
-    const statusIcon = isExpired ? '⚠️' : '✅';
+    const statusIcon = isExpired ? Icons.warning : Icons.success;
     const statusText = isExpired ? 'QR Code Expirado' : 'QR Code Válido';
     const statusDesc = isExpired
       ? 'Este QR Code não é mais válido.'
@@ -289,7 +289,7 @@ const Router = (() => {
         <div class="card-body">
           <!-- Header -->
           <div class="text-center mb-lg">
-            <div style="font-size: 20px; margin-bottom: 8px;">🌿</div>
+            <div style="color: var(--green); margin-bottom: 8px;">${Icons.leaf}</div>
             <h4 style="color: var(--green);">Cannapass</h4>
             <p class="text-xs text-muted">Verificação Pública</p>
           </div>
