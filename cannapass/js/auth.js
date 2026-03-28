@@ -4,30 +4,45 @@
    ═══════════════════════════════════════════ */
 
 const Auth = (() => {
+  let _isRecoveryFlow = false;
+
   // ─── Initialize Auth ───
   async function init() {
     showLoading();
     checkConnection();
 
+    // Detect if this is a password recovery redirect (Supabase puts tokens in hash)
+    const hashParams = window.location.hash;
+    if (hashParams.includes('type=recovery') || hashParams.includes('type%3Drecovery')) {
+      _isRecoveryFlow = true;
+      console.log('[Auth] Recovery flow detected from URL hash');
+    }
+
     // Listen for auth state changes
     sb.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] State change:', event);
+      console.log('[Auth] State change:', event, '_isRecoveryFlow:', _isRecoveryFlow);
       try {
-        if (event === 'SIGNED_IN' && session) {
+        if (event === 'PASSWORD_RECOVERY') {
+          // User clicked the reset link in their email — highest priority
+          _isRecoveryFlow = true;
+          hideLoading();
+          showAuth();
+          showAuthPanel('auth-reset');
+        } else if (event === 'SIGNED_IN' && session && _isRecoveryFlow) {
+          // Ignore SIGNED_IN during recovery flow — wait for PASSWORD_RECOVERY event
+          console.log('[Auth] Ignoring SIGNED_IN during recovery flow');
+          State.set('user', session.user);
+        } else if (event === 'SIGNED_IN' && session) {
           await loadUserData(session.user);
           hideLoading();
           showApp();
           Router.init();
         } else if (event === 'SIGNED_OUT') {
+          _isRecoveryFlow = false;
           State.reset();
           hideLoading();
           showAuth();
           resetForms();
-        } else if (event === 'PASSWORD_RECOVERY') {
-          // User clicked the reset link in their email
-          hideLoading();
-          showAuth();
-          showAuthPanel('auth-reset');
         } else if (event === 'INITIAL_SESSION') {
           // Handled by getSession() below — do nothing
         } else if (event === 'TOKEN_REFRESHED' && session) {
@@ -44,17 +59,24 @@ const Auth = (() => {
       }
     });
 
-    // Check existing session
+    // Check existing session (skip auto-login during recovery flow)
     try {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        await loadUserData(session.user);
+      if (_isRecoveryFlow) {
+        // During recovery, don't auto-navigate to dashboard
+        // The PASSWORD_RECOVERY event will handle showing the reset form
+        console.log('[Auth] Skipping auto-login for recovery flow');
         hideLoading();
-        showApp();
-        Router.init();
       } else {
-        hideLoading();
-        showAuth();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          await loadUserData(session.user);
+          hideLoading();
+          showApp();
+          Router.init();
+        } else {
+          hideLoading();
+          showAuth();
+        }
       }
     } catch (err) {
       console.error('[Auth] Session check error:', err);
@@ -503,6 +525,7 @@ const Auth = (() => {
 
       try {
         await resetPassword(newPwd);
+        _isRecoveryFlow = false;
         Toast.success('Senha redefinida com sucesso! Você já está logado.');
         // User is now signed in via the recovery token
         const { data: { session } } = await sb.auth.getSession();
