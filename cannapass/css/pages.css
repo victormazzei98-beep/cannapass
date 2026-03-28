@@ -399,3 +399,185 @@
   color: var(--green);
   flex-shrink: 0;
 }
+
+/* ─── Admin Detail Grid ─── */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detail-item label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.detail-item span {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.detail-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+/* ─── Document Cards (Admin) ─── */
+.docs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doc-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.doc-card-icon {
+  color: var(--green);
+  flex-shrink: 0;
+}
+.doc-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.doc-card-info strong {
+  font-size: 13px;
+}
+.doc-card-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Filters Bar ─── */
+.filters-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+}
+.filters-bar .form-select,
+.filters-bar .form-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  height: 36px;
+}
+
+/* ─── Pagination ─── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+/* ─── Card Footer ─── */
+.card-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Button Group Small ─── */
+.btn-group-sm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.btn-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ─── Form Select Small ─── */
+.form-select-sm {
+  font-size: 12px;
+  padding: 4px 8px;
+  height: 30px;
+}
+
+/* ─── Chart Container ─── */
+.chart-container {
+  position: relative;
+  height: 260px;
+}
+
+/* ─── Flex Center ─── */
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 0;
+}
+
+/* ─── Button Success ─── */
+.btn-success {
+  background: var(--green);
+  color: white;
+  border: none;
+}
+.btn-success:hover {
+  background: var(--green-hover);
+}
+
+/* ─── Scanner Styles ─── */
+#qr-reader {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+#qr-reader video {
+  border-radius: var(--radius);
+}
+
+/* ─── Agent Verification Result Cards ─── */
+.verification-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .filters-bar {
+    flex-direction: column;
+  }
+  .filters-bar .form-select,
+  .filters-bar .form-input {
+    width: 100%;
+    max-width: none !important;
+  }
+  .chart-container {
+    height: 200px;
+  }
+  .detail-actions {
+    flex-direction: column;
+  }
+  .btn-group {
+    flex-direction: column;
+  }
+  .btn-group-sm {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

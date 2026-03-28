@@ -564,18 +564,140 @@ const Patient = (() => {
   // ═══════════════════════════════════════
   //  DOCUMENTOS
   // ═══════════════════════════════════════
+  const DOC_TYPE_LABELS = {
+    [DOC_TYPES.IDENTITY]: 'Documento de Identidade',
+    [DOC_TYPES.PRESCRIPTION]: 'Prescrição Médica',
+    [DOC_TYPES.JUDICIAL]: 'Decisão Judicial',
+    'medical_report': 'Relatório Médico',
+    'other': 'Outro'
+  };
+
   async function renderDocumentos(container) {
     container.innerHTML = `
       <div class="page-header">
         <h2>Documentos</h2>
-        <p>Gerencie seus documentos enviados</p>
+        <p>Visualize, envie e gerencie seus documentos</p>
       </div>
+
+      <!-- Upload Card -->
+      <div class="card mb-md">
+        <div class="card-header">
+          <h3 class="card-title">Enviar Novo Documento</h3>
+        </div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label" for="doc-type-select">Tipo de Documento *</label>
+              <select id="doc-type-select" class="form-select">
+                <option value="">Selecione o tipo...</option>
+                <option value="identity">Documento de Identidade (RG/CNH)</option>
+                <option value="prescription">Prescrição Médica</option>
+                <option value="judicial_decision">Decisão Judicial</option>
+                <option value="medical_report">Relatório Médico</option>
+                <option value="other">Outro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="doc-file-input">Arquivo *</label>
+              <input type="file" id="doc-file-input" class="form-input" accept=".pdf,.jpg,.jpeg,.png">
+              <span class="form-hint">PDF, JPG ou PNG — máx. 10MB</span>
+            </div>
+          </div>
+          <button class="btn btn-primary mt-sm" id="doc-upload-btn">Enviar Documento</button>
+        </div>
+      </div>
+
+      <!-- Documents List -->
       <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Meus Documentos</h3>
+        </div>
         <div class="card-body" id="docs-list">
           <div class="flex-center"><div class="spinner"></div></div>
         </div>
       </div>
     `;
+
+    // Bind upload
+    document.getElementById('doc-upload-btn').addEventListener('click', handleDocUpload);
+
+    // Load documents
+    await loadDocumentsList();
+  }
+
+  async function handleDocUpload() {
+    const docType = document.getElementById('doc-type-select').value;
+    const fileInput = document.getElementById('doc-file-input');
+    const file = fileInput?.files?.[0];
+    const btn = document.getElementById('doc-upload-btn');
+
+    if (!docType) { Toast.warning('Selecione o tipo de documento.'); return; }
+    if (!file) { Toast.warning('Selecione um arquivo.'); return; }
+
+    // Validate file
+    const validation = validateFile(file);
+    if (!validation.valid) { Toast.error(validation.error); return; }
+
+    // Check magic bytes
+    const magicOk = await checkMagicBytes(file);
+    if (!magicOk) { Toast.error('O conteúdo do arquivo não corresponde à extensão. Verifique o arquivo.'); return; }
+
+    const userId = State.get('user')?.id;
+    const patient = State.get('patient');
+
+    if (!userId || !patient) {
+      Toast.error('Complete seu cadastro antes de enviar documentos.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+      // Upload to Storage
+      const ext = file.name.split('.').pop().toLowerCase();
+      const filePath = `${userId}/${docType}_${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await sb.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, file, { contentType: file.type, upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      // Save metadata
+      const { error: dbError } = await sb.from('documents').insert({
+        patient_id: patient.id,
+        user_id: userId,
+        doc_type: docType,
+        file_name: file.name,
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type
+      });
+
+      if (dbError) throw dbError;
+
+      Toast.success('Documento enviado com sucesso!');
+
+      // Reset form
+      document.getElementById('doc-type-select').value = '';
+      fileInput.value = '';
+
+      // Reload list
+      await loadDocumentsList();
+
+    } catch (err) {
+      console.error('[Patient] Doc upload error:', err);
+      Toast.error('Erro ao enviar documento. Tente novamente.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar Documento';
+    }
+  }
+
+  async function loadDocumentsList() {
+    const list = document.getElementById('docs-list');
+    if (!list) return;
 
     const userId = State.get('user')?.id;
     const { data: docs, error } = await sb
@@ -584,25 +706,29 @@ const Patient = (() => {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    const list = document.getElementById('docs-list');
-    if (!list) return;
-
     if (error || !docs?.length) {
       list.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">${Icons['empty-doc']}</div>
           <h4>Nenhum documento</h4>
-          <p>Complete seu cadastro para enviar documentos.</p>
+          <p>Envie seus documentos usando o formulário acima.</p>
         </div>
       `;
       return;
     }
 
-    const docTypeLabels = {
-      [DOC_TYPES.IDENTITY]: 'Documento de Identidade',
-      [DOC_TYPES.PRESCRIPTION]: 'Prescrição Médica',
-      [DOC_TYPES.JUDICIAL]: 'Decisão Judicial'
-    };
+    // Get signed URLs for all docs
+    const docsWithUrls = await Promise.all(docs.map(async (doc) => {
+      try {
+        const { data } = await sb.storage.from(STORAGE_BUCKET).createSignedUrl(doc.file_path, SIGNED_URL_EXPIRY);
+        return { ...doc, signedUrl: data?.signedUrl };
+      } catch {
+        return { ...doc, signedUrl: null };
+      }
+    }));
+
+    const statusLabel = (s) => s === 'verified' ? 'Verificado' : s === 'rejected' ? 'Rejeitado' : 'Enviado';
+    const statusBadge = (s) => s === 'verified' ? 'success' : s === 'rejected' ? 'danger' : 'warning';
 
     list.innerHTML = `
       <table class="table">
@@ -613,21 +739,65 @@ const Patient = (() => {
             <th>Tamanho</th>
             <th>Status</th>
             <th>Data</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
-          ${docs.map(doc => `
+          ${docsWithUrls.map(doc => `
             <tr>
-              <td>${docTypeLabels[doc.doc_type] || doc.doc_type}</td>
-              <td class="truncate" style="max-width: 200px;">${sanitizeHTML(doc.file_name)}</td>
-              <td>${formatFileSize(doc.file_size)}</td>
-              <td><span class="badge badge-${doc.status === 'verified' ? 'success' : doc.status === 'rejected' ? 'danger' : 'warning'}">${doc.status === 'verified' ? 'Verificado' : doc.status === 'rejected' ? 'Rejeitado' : 'Enviado'}</span></td>
+              <td>${DOC_TYPE_LABELS[doc.doc_type] || doc.doc_type}</td>
+              <td class="truncate" style="max-width: 180px;" title="${sanitizeHTML(doc.file_name)}">${sanitizeHTML(doc.file_name)}</td>
+              <td>${formatFileSize(doc.file_size || 0)}</td>
+              <td><span class="badge badge-${statusBadge(doc.status)}">${statusLabel(doc.status)}</span></td>
               <td>${formatDate(doc.created_at)}</td>
+              <td>
+                <div class="btn-group-sm">
+                  ${doc.signedUrl ? `<a href="${doc.signedUrl}" target="_blank" class="btn btn-sm btn-secondary">Ver</a>` : ''}
+                  <button class="btn btn-sm btn-danger doc-delete-btn" data-doc-id="${doc.id}" data-file-path="${doc.file_path}" data-file-name="${sanitizeHTML(doc.file_name)}">Remover</button>
+                </div>
+              </td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     `;
+
+    // Bind delete buttons
+    list.querySelectorAll('.doc-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteDocument(btn.dataset.docId, btn.dataset.filePath, btn.dataset.fileName));
+    });
+  }
+
+  async function deleteDocument(docId, filePath, fileName) {
+    const confirmed = await Modal.open({
+      title: 'Remover Documento',
+      body: `Tem certeza que deseja remover o documento <strong>${fileName}</strong>? Esta ação não pode ser desfeita.`,
+      confirmText: 'Remover',
+      cancelText: 'Cancelar',
+      danger: true
+    });
+
+    if (!confirmed) return;
+
+    try {
+      // Delete from Storage
+      const { error: storageError } = await sb.storage
+        .from(STORAGE_BUCKET)
+        .remove([filePath]);
+
+      if (storageError) console.warn('[Patient] Storage delete warning:', storageError);
+
+      // Delete metadata from DB
+      const { error: dbError } = await sb.from('documents').delete().eq('id', docId);
+      if (dbError) throw dbError;
+
+      Toast.success('Documento removido.');
+      await loadDocumentsList();
+
+    } catch (err) {
+      console.error('[Patient] Doc delete error:', err);
+      Toast.error('Erro ao remover documento.');
+    }
   }
 
   // ═══════════════════════════════════════
