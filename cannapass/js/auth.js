@@ -545,9 +545,6 @@ const Auth = (() => {
       }
     });
 
-    // Change password button (in-app, sidebar)
-    document.getElementById('change-password-btn')?.addEventListener('click', showChangePasswordModal);
-
     // Password toggles
     document.querySelectorAll('.password-toggle').forEach(toggle => {
       toggle.addEventListener('click', () => {
