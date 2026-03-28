@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cannapass — Plataforma digital de rastreamento e fiscalização do transporte legal de cannabis medicinal no Brasil">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://yoeqdwkshqqkvcctvmay.supabase.co https://brasilapi.com.br; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://yoeqdwkshqqkvcctvmay.supabase.co; connect-src 'self' https://yoeqdwkshqqkvcctvmay.supabase.co https://brasilapi.com.br">
+  <title>Cannapass</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+  <!-- ═══ Loading Screen ═══ -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-screen-content">
+      <div class="loading-screen-icon">🌿</div>
+      <div class="loading-screen-text">Cannapass</div>
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Auth Container ═══ -->
+  <div id="auth-container" class="hidden">
+    <div class="auth-screen">
+      <div class="auth-container">
+        <!-- Logo -->
+        <div class="auth-logo">
+          <div class="auth-logo-icon">🌿</div>
+          <span class="auth-brand">Cannapass</span>
+        </div>
+        <p class="auth-tagline">Transporte Legal Verificável</p>
+
+        <!-- Auth Card -->
+        <div class="auth-card">
+          <!-- Login Form (default) -->
+          <div id="auth-login">
+            <h2 class="auth-card-title">Entrar</h2>
+            <p class="auth-card-subtitle">Acesse sua conta para continuar</p>
+
+            <div id="auth-error" class="auth-error" role="alert"></div>
+
+            <form id="login-form" class="form-stack" autocomplete="on">
+              <div class="form-group">
+                <label class="form-label" for="login-email">E-mail</label>
+                <input class="form-input" type="email" id="login-email" name="email" placeholder="seu@email.com" required autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="login-password">Senha</label>
+                <div class="password-wrapper">
+                  <input class="form-input" type="password" id="login-password" name="password" placeholder="Sua senha" required autocomplete="current-password" minlength="6">
+                  <span class="password-toggle" role="button" tabindex="0" aria-label="Mostrar senha">👁</span>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-btn">
+                Entrar
+              </button>
+            </form>
+          </div>
+
+          <!-- Signup Form -->
+          <div id="auth-signup" class="hidden">
+            <h2 class="auth-card-title">Criar Conta</h2>
+            <p class="auth-card-subtitle">Selecione seu perfil para começar</p>
+
+            <div id="signup-error" class="auth-error" role="alert"></div>
+
+            <!-- Role Selector -->
+            <div class="auth-role-selector" id="role-selector">
+              <button type="button" class="auth-role-btn patient" data-role="patient">
+                <span class="auth-role-icon">🏥</span>
+                Paciente
+              </button>
+              <button type="button" class="auth-role-btn agent" data-role="agent">
+                <span class="auth-role-icon">🛡️</span>
+                Agente
+              </button>
+              <button type="button" class="auth-role-btn admin" data-role="admin">
+                <span class="auth-role-icon">⚙️</span>
+                Admin
+              </button>
+            </div>
+
+            <form id="signup-form" class="form-stack" autocomplete="on">
+              <div class="form-group">
+                <label class="form-label" for="signup-name">Nome completo</label>
+                <input class="form-input" type="text" id="signup-name" name="name" placeholder="Seu nome completo" required autocomplete="name">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="signup-email">E-mail</label>
+                <input class="form-input" type="email" id="signup-email" name="email" placeholder="seu@email.com" required autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="signup-password">Senha</label>
+                <div class="password-wrapper">
+                  <input class="form-input" type="password" id="signup-password" name="password" placeholder="Mínimo 6 caracteres" required autocomplete="new-password" minlength="6">
+                  <span class="password-toggle" role="button" tabindex="0" aria-label="Mostrar senha">👁</span>
+                </div>
+              </div>
+              <input type="hidden" id="signup-role" value="">
+              <button type="submit" class="btn btn-primary btn-block btn-lg" id="signup-btn" disabled>
+                Criar Conta
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Auth Footer (toggle login/signup) -->
+        <div class="auth-footer" id="auth-footer">
+          <span id="auth-footer-text">Não tem uma conta?</span>
+          <a id="auth-footer-link">Criar conta</a>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="auth-status">
+          <span class="auth-status-dot checking" id="auth-status-dot"></span>
+          <span id="auth-status-text">Verificando conexão...</span>
+        </div>
+
+        <!-- Theme toggle on auth -->
+        <div style="text-align: center; margin-top: 12px;">
+          <button class="theme-toggle" id="theme-toggle-auth" aria-label="Alternar tema">🌙</button>
+        </div>
+
+        <!-- Compliance -->
+        <p class="auth-compliance">
+          Plataforma em conformidade com a Resolução ANVISA RDC nº 327/2019,
+          Lei nº 11.343/2006 e LGPD. Seus dados são protegidos e criptografados.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ App Container ═══ -->
+  <div id="app-container" class="hidden">
+    <div class="app-container">
+
+      <!-- Sidebar Overlay (mobile) -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">🌿</div>
+          <span class="sidebar-logo-text">Cannapass</span>
+        </div>
+        <div class="sidebar-portal-badge" id="sidebar-portal-badge"></div>
+
+        <!-- Navigation (generated by router.js based on role) -->
+        <nav class="sidebar-nav" id="sidebar-nav" aria-label="Menu principal"></nav>
+
+        <!-- Sidebar Bottom -->
+        <div class="sidebar-bottom">
+          <div class="sidebar-user">
+            <div class="sidebar-user-avatar" id="sidebar-avatar"></div>
+            <div class="sidebar-user-info">
+              <div class="sidebar-user-name" id="sidebar-user-name"></div>
+              <div class="sidebar-user-role" id="sidebar-user-role"></div>
+            </div>
+          </div>
+          <div class="sidebar-actions">
+            <button class="sidebar-action-btn" id="theme-toggle" aria-label="Alternar tema">
+              🌙
+            </button>
+            <button class="sidebar-action-btn" id="logout-btn" aria-label="Sair">
+              🚪 Sair
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Area -->
+      <div class="main-area">
+        <!-- Topbar -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="topbar-hamburger" id="hamburger-btn" aria-label="Abrir menu">☰</button>
+            <h1 class="topbar-title" id="topbar-title"></h1>
+          </div>
+          <div class="topbar-right" id="topbar-right"></div>
+        </header>
+
+        <!-- Main Content (pages rendered here by router) -->
+        <main class="main-content" id="main-content" role="main"></main>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Public Verification Container (no auth needed) ═══ -->
+  <div id="public-container" class="hidden">
+    <div class="public-verification" id="public-verification"></div>
+  </div>
+
+  <!-- ═══ Toast Container ═══ -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- ═══ Modal ═══ -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title"></h3>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="modal-confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CDN Libraries ═══ -->
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- QR Code Generator -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- QR Scanner (Camera) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <!-- Day.js + Plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/pt-br.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
+  <script>
+    dayjs.locale('pt-br');
+    dayjs.extend(dayjs_plugin_customParseFormat);
+  </script>
+
+  <!-- ═══ App Scripts (order matters) ═══ -->
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/patient.js"></script>
+  <script src="js/agent.js"></script>
+  <script src="js/admin.js"></script>
+
+</body>
+</html>

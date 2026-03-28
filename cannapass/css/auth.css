@@ -1,0 +1,233 @@
+/* ═══════════════════════════════════════════
+   CANNAPASS — Auth Screens
+   Login, signup, fullscreen layout
+   ═══════════════════════════════════════════ */
+
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.auth-screen::before {
+  content: '';
+  position: absolute;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 900px;
+  background: radial-gradient(ellipse, var(--green-glow) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 480px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Logo ─── */
+.auth-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.auth-logo-icon {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, var(--green-3), var(--green));
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: var(--shadow-green);
+}
+
+.auth-brand {
+  font-family: var(--font-heading);
+  font-size: 44px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--green) 0%, #a8f0c8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+:root[data-theme="light"] .auth-brand {
+  background: linear-gradient(135deg, var(--green) 0%, #0d6640 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-tagline {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+
+/* ─── Card ─── */
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px;
+  box-shadow: var(--shadow);
+}
+
+.auth-card-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.auth-card-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+/* ─── Role Selector ─── */
+.auth-role-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.auth-role-btn {
+  padding: 14px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  border: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.auth-role-btn:hover {
+  border-color: var(--border-2);
+  color: var(--text-2);
+}
+
+.auth-role-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.auth-role-btn.active.patient {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-soft);
+}
+.auth-role-btn.active.agent {
+  border-color: #e08888;
+  color: #e08888;
+  background: rgba(224, 136, 136, 0.08);
+}
+.auth-role-btn.active.admin {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+/* ─── Error Message ─── */
+.auth-error {
+  background: var(--red-soft);
+  border: 1px solid rgba(224, 85, 85, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--red);
+  margin-bottom: 16px;
+  display: none;
+}
+.auth-error.visible { display: block; }
+
+/* ─── Footer ─── */
+.auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.auth-footer a {
+  color: var(--green);
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-footer a:hover { text-decoration: underline; }
+
+/* ─── Connection Status ─── */
+.auth-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.auth-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.auth-status-dot.online {
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(61, 214, 140, 0.5);
+}
+.auth-status-dot.offline {
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(224, 85, 85, 0.5);
+}
+.auth-status-dot.checking {
+  background: var(--gold);
+  animation: pulse 1s infinite;
+}
+
+/* ─── Compliance ─── */
+.auth-compliance {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 400px;
+  margin: 24px auto 0;
+  line-height: 1.5;
+}
+
+/* ─── Password Toggle ─── */
+.password-wrapper {
+  position: relative;
+}
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 16px;
+  padding: 4px;
+  transition: color var(--transition-fast);
+}
+.password-toggle:hover { color: var(--text); }
