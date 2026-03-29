@@ -911,44 +911,53 @@ const Patient = (() => {
         return;
       }
 
-      // 1. Create travel record
-      const { data: travel, error: travelError } = await sb
-        .from('travel_data')
-        .insert({
-          user_id: userId,
-          patient_id: patient.id,
-          origin,
-          destination,
-          departure_date: departure,
-          return_date: returnDate,
-          transport_type: transport,
-          flight_number: flight,
-          notes
-        })
-        .select()
-        .single();
-
-      if (travelError) throw new Error(`Erro ao registrar viagem: ${travelError.message}`);
-
-      // 2. Generate QR Code token
+      // 1. Generate QR Code token first (we need the ID for travel_data)
       const token = generateToken();
-      const qrUrl = `${window.location.origin}${window.location.pathname}${PUBLIC_VERIFY_HASH}${token}`;
+      const viaLabel = patient.via === 'pharmacy' ? 'Farmácia/Associação' : 'Habeas Corpus';
+      const legalRef = patient.via === 'pharmacy'
+        ? 'RDC ANVISA nº 327/2019'
+        : `HC ${patient.process_number || '—'} — ${patient.court || '—'}`;
+
+      // Set expiry to end of departure day
+      const expiresAt = new Date(departure + 'T23:59:59');
 
       const { data: qr, error: qrError } = await sb
         .from('qr_codes')
         .insert({
           user_id: userId,
           patient_id: patient.id,
-          travel_id: travel.id,
           token,
-          qr_url: qrUrl,
-          status: QR_STATUS.ACTIVE,
-          expires_at: departure
+          patient_name: patient.full_name,
+          cpf_masked: maskCPF(patient.cpf || ''),
+          via: patient.via,
+          product: patient.product_name || patient.product_type || '—',
+          quantity: patient.transport_quantity || patient.total_quantity || '—',
+          legal_reference: legalRef,
+          is_active: true,
+          expires_at: expiresAt.toISOString()
         })
         .select()
         .single();
 
       if (qrError) throw new Error(`Erro ao gerar QR Code: ${qrError.message}`);
+
+      // 2. Create travel record linked to QR
+      const { data: travel, error: travelError } = await sb
+        .from('travel_data')
+        .insert({
+          user_id: userId,
+          patient_id: patient.id,
+          qr_code_id: qr.id,
+          origin,
+          destination,
+          departure_date: departure,
+          transport_type: transport,
+          flight_or_bus: flight
+        })
+        .select()
+        .single();
+
+      if (travelError) throw new Error(`Erro ao registrar viagem: ${travelError.message}`);
 
       Toast.success('Viagem registrada e QR Code gerado!');
       Router.navigate('qrcode');
@@ -979,7 +988,7 @@ const Patient = (() => {
       .from('qr_codes')
       .select('*, travel_data(*)')
       .eq('user_id', userId)
-      .eq('status', 'active')
+      .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -1005,8 +1014,10 @@ const Patient = (() => {
     }
 
     const qr = qrCodes[0];
-    const travel = qr.travel_data;
-    const isExpired = !isFutureDate(qr.expires_at);
+    // travel_data is a reverse FK relation — returns array
+    const travel = Array.isArray(qr.travel_data) ? qr.travel_data[0] : qr.travel_data;
+    const isExpired = qr.expires_at && !isFutureDate(qr.expires_at);
+    const qrUrl = `${window.location.origin}${window.location.pathname}${PUBLIC_VERIFY_HASH}${qr.token}`;
 
     content.innerHTML = `
       <div class="qr-display">
@@ -1034,13 +1045,24 @@ const Patient = (() => {
             <div class="qr-meta-value">${getTransportLabel(travel?.transport_type)}</div>
           </div>
         </div>
+
+        <div class="qr-meta mt-sm">
+          <div class="qr-meta-item">
+            <div class="qr-meta-label">Produto</div>
+            <div class="qr-meta-value">${sanitizeHTML(qr.product || '—')}</div>
+          </div>
+          <div class="qr-meta-item">
+            <div class="qr-meta-label">Quantidade</div>
+            <div class="qr-meta-value">${sanitizeHTML(qr.quantity || '—')}</div>
+          </div>
+        </div>
       </div>
     `;
 
     // Generate QR Code on canvas
     const canvas = document.getElementById('qr-canvas');
     if (canvas && typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, qr.qr_url, {
+      QRCode.toCanvas(canvas, qrUrl, {
         width: 280,
         margin: 2,
         color: { dark: '#1a1a2e', light: '#ffffff' }

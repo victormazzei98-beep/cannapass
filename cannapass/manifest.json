@@ -1,0 +1,18 @@
+{
+  "name": "Cannapass",
+  "short_name": "Cannapass",
+  "description": "Plataforma digital de rastreamento e fiscalização do transporte legal de cannabis medicinal no Brasil",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#22c55e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230d1117' width='100' height='100' rx='20'/><text x='50' y='68' text-anchor='middle' font-size='60' fill='%2322c55e'>C</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

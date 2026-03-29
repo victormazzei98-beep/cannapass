@@ -51,11 +51,11 @@ const VERIFICATION_RESULT = Object.freeze({
   EXPIRED: 'expired'
 });
 
-// ─── Transport Types ───
+// ─── Transport Types (must match DB check constraint) ───
 const TRANSPORT = Object.freeze({
-  AIR: 'aereo',
-  BUS: 'rodoviario',
-  OTHER: 'outro'
+  AIR: 'air',
+  BUS: 'road',
+  OTHER: 'other'
 });
 
 // ─── File Upload Constraints ───

@@ -507,6 +507,25 @@ const Admin = (() => {
     }
   }
 
+  // ─── Send email notification via Edge Function ───
+  async function sendNotification(type, patientEmail, patientName, rejectionReason) {
+    try {
+      const { data, error } = await sb.functions.invoke('send-notification', {
+        body: {
+          type,
+          patient_email: patientEmail,
+          patient_name: patientName,
+          rejection_reason: rejectionReason || undefined
+        }
+      });
+      if (error) console.warn('[Admin] Notification send warning:', error);
+      else console.log('[Admin] Notification sent:', data);
+    } catch (err) {
+      // Don't block the main flow if email fails
+      console.warn('[Admin] Notification error (non-blocking):', err);
+    }
+  }
+
   async function approvePatient(patientId) {
     const confirmed = await Modal.open({
       title: 'Aprovar Cadastro',
@@ -518,6 +537,9 @@ const Admin = (() => {
     if (!confirmed) return;
 
     try {
+      // Fetch patient data for email
+      const { data: patient } = await sb.from('patients').select('full_name, email').eq('id', patientId).single();
+
       const adminId = State.get('user')?.id;
       const { error } = await sb.from('patients').update({
         status: 'approved',
@@ -530,6 +552,11 @@ const Admin = (() => {
       Toast.success('Cadastro aprovado com sucesso!');
       document.getElementById('cadastro-detail-area').innerHTML = '';
       loadCadastros();
+
+      // Send email notification (non-blocking)
+      if (patient?.email) {
+        sendNotification('approved', patient.email, patient.full_name);
+      }
     } catch (err) {
       console.error('[Admin] Approve error:', err);
       Toast.error('Erro ao aprovar cadastro.');
@@ -560,6 +587,9 @@ const Admin = (() => {
     }
 
     try {
+      // Fetch patient data for email
+      const { data: patient } = await sb.from('patients').select('full_name, email').eq('id', patientId).single();
+
       const adminId = State.get('user')?.id;
       const { error } = await sb.from('patients').update({
         status: 'rejected',
@@ -573,6 +603,11 @@ const Admin = (() => {
       Toast.success('Cadastro rejeitado.');
       if (area) area.innerHTML = '';
       loadCadastros();
+
+      // Send email notification (non-blocking)
+      if (patient?.email) {
+        sendNotification('rejected', patient.email, patient.full_name, reason);
+      }
     } catch (err) {
       console.error('[Admin] Reject error:', err);
       Toast.error('Erro ao rejeitar cadastro.');
