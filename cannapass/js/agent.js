@@ -212,22 +212,29 @@ const Agent = (() => {
         return;
       }
 
-      // RPC may return single object or array
+      // RPC returns single JSON object
       qrRecord = Array.isArray(qrData) ? qrData[0] : qrData;
 
-      // Determine status
-      const isActive = qrRecord.is_active !== false;
-      const isExpired = qrRecord.expires_at && new Date(qrRecord.expires_at) < new Date();
-
-      if (!isActive) {
+      // Check for RPC-level error (token not found)
+      if (qrRecord.error) {
         result = 'invalid';
-      } else if (isExpired) {
-        result = 'expired';
-      } else {
-        result = 'valid';
+        await recordVerification(null, token, null, result);
+        renderVerificationResult(resultArea, result, null, null, null, null);
+        return;
       }
 
-      // Fetch patient details if we have patient_id
+      // Use RPC's pre-computed valid/expired flags
+      if (qrRecord.valid) {
+        result = 'valid';
+      } else if (qrRecord.expired) {
+        result = 'expired';
+      } else if (!qrRecord.is_active) {
+        result = 'invalid';
+      } else {
+        result = 'invalid';
+      }
+
+      // Fetch patient details if we have patient_id (returned by updated RPC)
       if (qrRecord.patient_id) {
         const { data: pData } = await sb.from('patients')
           .select('*')
@@ -244,7 +251,7 @@ const Agent = (() => {
           documents = docs || [];
         }
 
-        // Fetch travel data
+        // Fetch travel data (RPC already returns latest travel, but we get full record)
         const { data: tData } = await sb.from('travel_data')
           .select('*')
           .eq('patient_id', qrRecord.patient_id)
@@ -253,8 +260,8 @@ const Agent = (() => {
         travelData = tData && tData.length > 0 ? tData[0] : null;
       }
 
-      // Record verification
-      await recordVerification(qrRecord.id, token, qrRecord.patient_name, result);
+      // Record verification — use qr_id from RPC
+      await recordVerification(qrRecord.qr_id, token, qrRecord.patient_name, result);
 
       // Render result
       renderVerificationResult(resultArea, result, qrRecord, patientData, travelData, documents);
