@@ -8,6 +8,15 @@ const Auth = (() => {
 
   // ─── Initialize Auth ───
   async function init() {
+    // Public verification route — bypass auth entirely
+    const hash = window.location.hash || '';
+    if (hash.startsWith(PUBLIC_VERIFY_HASH)) {
+      hideLoading();
+      const token = hash.slice(PUBLIC_VERIFY_HASH.length);
+      Router.showPublicVerification(token);
+      return;
+    }
+
     showLoading();
     checkConnection();
 
