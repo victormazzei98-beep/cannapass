@@ -1059,15 +1059,25 @@ const Patient = (() => {
       </div>
     `;
 
-    // Generate QR Code on canvas
-    const canvas = document.getElementById('qr-canvas');
-    if (canvas && typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, qrUrl, {
-        width: 280,
-        margin: 2,
-        color: { dark: '#1a1a2e', light: '#ffffff' }
+    // Generate QR Code on canvas (defer to next frame so DOM is fully laid out)
+    requestAnimationFrame(() => {
+      const canvas = document.getElementById('qr-canvas');
+      if (!canvas || typeof QRious === 'undefined') return;
+
+      const qr = new QRious({
+        element: canvas,
+        value: qrUrl,
+        size: 280,
+        foreground: '#1a1a2e',
+        background: '#ffffff',
+        level: 'M'
       });
-    }
+
+      // Fallback: if canvas is visually empty, inject an <img> instead
+      if (!qr.toDataURL()) return;
+      canvas.style.display = 'block';
+      canvas.style.margin = '0 auto';
+    });
   }
 
   // ═══════════════════════════════════════
