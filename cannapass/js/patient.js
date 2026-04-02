@@ -10,6 +10,10 @@ const Patient = (() => {
   let wizardData = {
     full_name: '', cpf: '', birth_date: '', email: '', phone: '',
     via_type: '',
+    // Pharmacy fields
+    doctor_name: '', doctor_crm: '', prescription_validity: '',
+    // HC fields
+    process_number: '', court: '', hc_validity: '',
     documents: {}
   };
   let uploadedFiles = {};
@@ -145,6 +149,14 @@ const Patient = (() => {
         email: patient.email || State.get('profile')?.email || '',
         phone: patient.phone || '',
         via_type: patient.via || '',
+        // Pharmacy fields
+        doctor_name: patient.doctor_name || '',
+        doctor_crm: patient.doctor_crm || '',
+        prescription_validity: patient.prescription_validity || '',
+        // HC fields
+        process_number: patient.process_number || '',
+        court: patient.court || '',
+        hc_validity: patient.hc_validity || '',
         documents: {}
       };
     } else {
@@ -298,13 +310,61 @@ const Patient = (() => {
           <p>Autorização judicial para cultivo ou porte de cannabis medicinal</p>
         </div>
       </div>
+
+      <!-- Pharmacy fields -->
+      <div id="pharmacy-fields" class="via-extra-fields ${wizardData.via_type === VIA.PHARMACY ? '' : 'hidden'}" style="margin-top:24px;">
+        <h4 class="mb-md">Dados da Prescrição</h4>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label" for="w-doctor-name">Nome do Médico *</label>
+            <input class="form-input" type="text" id="w-doctor-name" placeholder="Dr. João Silva" value="${sanitizeHTML(wizardData.doctor_name || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="w-doctor-crm">CRM *</label>
+            <input class="form-input" type="text" id="w-doctor-crm" placeholder="CRM/SP 123456" value="${sanitizeHTML(wizardData.doctor_crm || '')}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="w-prescription-validity">Validade da Prescrição *</label>
+          <input class="form-input" type="date" id="w-prescription-validity" value="${wizardData.prescription_validity || ''}">
+        </div>
+      </div>
+
+      <!-- Habeas Corpus fields -->
+      <div id="hc-fields" class="via-extra-fields ${wizardData.via_type === VIA.HABEAS ? '' : 'hidden'}" style="margin-top:24px;">
+        <h4 class="mb-md">Dados do Habeas Corpus</h4>
+        <p class="text-muted mb-md" style="font-size:13px;">Todos os campos são obrigatórios. Sem essas informações o cadastro será negado.</p>
+        <div class="form-group">
+          <label class="form-label" for="w-process-number">Nº do Processo *</label>
+          <input class="form-input" type="text" id="w-process-number" placeholder="0000000-00.0000.0.00.0000" value="${sanitizeHTML(wizardData.process_number || '')}">
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label" for="w-court">Vara / Tribunal *</label>
+            <input class="form-input" type="text" id="w-court" placeholder="Ex: 1ª Vara Criminal — TJ/SP" value="${sanitizeHTML(wizardData.court || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="w-hc-validity">Validade do HC *</label>
+            <input class="form-input" type="date" id="w-hc-validity" value="${wizardData.hc_validity || ''}">
+          </div>
+        </div>
+      </div>
     `;
+
+    // Toggle via-specific fields
+    function toggleViaFields(via) {
+      const pharmacyFields = document.getElementById('pharmacy-fields');
+      const hcFields = document.getElementById('hc-fields');
+      if (pharmacyFields) pharmacyFields.classList.toggle('hidden', via !== VIA.PHARMACY);
+      if (hcFields) hcFields.classList.toggle('hidden', via !== VIA.HABEAS);
+    }
 
     container.querySelectorAll('.via-card').forEach(card => {
       card.addEventListener('click', () => {
         container.querySelectorAll('.via-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         wizardData.via_type = card.dataset.via;
+        toggleViaFields(card.dataset.via);
       });
     });
   }
@@ -404,6 +464,14 @@ const Patient = (() => {
       <div class="review-section">
         <h4>Via de Acesso</h4>
         <div class="review-row"><span class="review-row-label">Tipo</span><span class="review-row-value">${getViaLabel(wizardData.via_type)}</span></div>
+        ${wizardData.via_type === VIA.PHARMACY ? `
+          <div class="review-row"><span class="review-row-label">Médico</span><span class="review-row-value">${sanitizeHTML(wizardData.doctor_name)} — ${sanitizeHTML(wizardData.doctor_crm)}</span></div>
+          <div class="review-row"><span class="review-row-label">Validade Prescrição</span><span class="review-row-value">${formatDate(wizardData.prescription_validity)}</span></div>
+        ` : `
+          <div class="review-row"><span class="review-row-label">Nº Processo</span><span class="review-row-value">${sanitizeHTML(wizardData.process_number)}</span></div>
+          <div class="review-row"><span class="review-row-label">Vara / Tribunal</span><span class="review-row-value">${sanitizeHTML(wizardData.court)}</span></div>
+          <div class="review-row"><span class="review-row-label">Validade HC</span><span class="review-row-value">${formatDate(wizardData.hc_validity)}</span></div>
+        `}
       </div>
 
       <div class="review-section">
@@ -435,7 +503,17 @@ const Patient = (() => {
         wizardData.email = document.getElementById('w-email')?.value.trim() || '';
         wizardData.phone = document.getElementById('w-phone')?.value.replace(/\D/g, '') || '';
         break;
-      // Product data collected during travel registration, not here
+      case 2:
+        if (wizardData.via_type === VIA.PHARMACY) {
+          wizardData.doctor_name = document.getElementById('w-doctor-name')?.value.trim() || '';
+          wizardData.doctor_crm = document.getElementById('w-doctor-crm')?.value.trim() || '';
+          wizardData.prescription_validity = document.getElementById('w-prescription-validity')?.value || '';
+        } else if (wizardData.via_type === VIA.HABEAS) {
+          wizardData.process_number = document.getElementById('w-process-number')?.value.trim() || '';
+          wizardData.court = document.getElementById('w-court')?.value.trim() || '';
+          wizardData.hc_validity = document.getElementById('w-hc-validity')?.value || '';
+        }
+        break;
     }
   }
 
@@ -451,6 +529,16 @@ const Patient = (() => {
         return true;
       case 2:
         if (!wizardData.via_type) { Toast.error('Selecione a via de acesso.'); return false; }
+        if (wizardData.via_type === VIA.PHARMACY) {
+          if (!wizardData.doctor_name) { Toast.error('Informe o nome do médico.'); return false; }
+          if (!wizardData.doctor_crm) { Toast.error('Informe o CRM do médico.'); return false; }
+          if (!wizardData.prescription_validity) { Toast.error('Informe a validade da prescrição.'); return false; }
+        }
+        if (wizardData.via_type === VIA.HABEAS) {
+          if (!wizardData.process_number) { Toast.error('Informe o Nº do Processo. Este campo é obrigatório para Habeas Corpus.'); return false; }
+          if (!wizardData.court) { Toast.error('Informe a Vara/Tribunal. Este campo é obrigatório para Habeas Corpus.'); return false; }
+          if (!wizardData.hc_validity) { Toast.error('Informe a validade do HC. Este campo é obrigatório para Habeas Corpus.'); return false; }
+        }
         return true;
       case 3: {
         const mainDocType = wizardData.via_type === VIA.PHARMACY ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL;
@@ -511,7 +599,7 @@ const Patient = (() => {
         docUploads.push({ docType, filePath, fileName: file.name, fileSize: file.size, mimeType: file.type });
       }
 
-      // 2. Upsert patient record (product info is added later during travel registration)
+      // 2. Upsert patient record
       const patientData = {
         user_id: userId,
         full_name: wizardData.full_name,
@@ -522,6 +610,17 @@ const Patient = (() => {
         via: wizardData.via_type,
         status: STATUS.PENDING
       };
+
+      // Add via-specific fields
+      if (wizardData.via_type === VIA.PHARMACY) {
+        patientData.doctor_name = wizardData.doctor_name;
+        patientData.doctor_crm = wizardData.doctor_crm;
+        patientData.prescription_validity = wizardData.prescription_validity;
+      } else if (wizardData.via_type === VIA.HABEAS) {
+        patientData.process_number = wizardData.process_number;
+        patientData.court = wizardData.court;
+        patientData.hc_validity = wizardData.hc_validity;
+      }
 
       const { data: patient, error: patientError } = await sb
         .from('patients')
