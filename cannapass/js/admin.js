@@ -1079,6 +1079,8 @@ const Admin = (() => {
         return map[role] || 'neutral';
       };
 
+      const currentUserId = State.get('user')?.id;
+
       content.innerHTML = `
         <table class="table">
           <thead>
@@ -1089,11 +1091,12 @@ const Admin = (() => {
               <th>Organização</th>
               <th>Criado em</th>
               <th>Alterar Role</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             ${data.map(u => `
-              <tr>
+              <tr data-row-id="${u.id}">
                 <td>${sanitizeHTML(u.full_name || '—')}</td>
                 <td>${sanitizeHTML(u.email || '—')}</td>
                 <td><span class="badge badge-${roleBadgeType(u.role)}">${getRoleLabel(u.role)}</span></td>
@@ -1105,6 +1108,13 @@ const Admin = (() => {
                     <option value="agent" ${u.role === 'agent' ? 'selected' : ''}>Agente</option>
                     <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
                   </select>
+                </td>
+                <td>
+                  ${u.id !== currentUserId ? `
+                    <button class="btn btn-danger btn-sm delete-user-btn" data-user-id="${u.id}" data-user-name="${sanitizeHTML(u.full_name || u.email || '')}">
+                      ${Icons.x} Excluir
+                    </button>
+                  ` : '<span class="text-muted text-xs">Você</span>'}
                 </td>
               </tr>
             `).join('')}
@@ -1142,6 +1152,61 @@ const Admin = (() => {
             console.error('[Admin] Role change error:', err);
             Toast.error('Erro ao alterar role.');
             e.target.value = currentRole;
+          }
+        });
+      });
+
+      // Bind delete user buttons
+      content.querySelectorAll('.delete-user-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const userId = btn.dataset.userId;
+          const userName = btn.dataset.userName;
+
+          const confirmed = await Modal.open({
+            title: 'Excluir Usuário',
+            body: `Tem certeza que deseja excluir o usuário "${userName}" e todos os seus dados (cadastros, documentos, QR Codes, viagens)? Esta ação é irreversível.`,
+            confirmText: 'Excluir Permanentemente',
+            cancelText: 'Cancelar',
+            danger: true
+          });
+
+          if (!confirmed) return;
+
+          // Disable button and show loading
+          btn.disabled = true;
+          btn.innerHTML = '<div class="spinner spinner-sm"></div> Excluindo...';
+
+          try {
+            const { data, error } = await sb.rpc('delete_user_cascade', {
+              target_user_id: userId
+            });
+
+            if (error) throw error;
+
+            Toast.success(`Usuário "${userName}" excluído com sucesso!`);
+
+            // Remove row with animation
+            const row = content.querySelector(`tr[data-row-id="${userId}"]`);
+            if (row) {
+              row.style.transition = 'opacity 0.3s, transform 0.3s';
+              row.style.opacity = '0';
+              row.style.transform = 'translateX(20px)';
+              setTimeout(() => {
+                row.remove();
+                // Check if table is now empty
+                const tbody = content.querySelector('tbody');
+                if (tbody && !tbody.children.length) {
+                  loadUsuarios();
+                }
+              }, 300);
+            } else {
+              loadUsuarios();
+            }
+          } catch (err) {
+            console.error('[Admin] Delete user error:', err);
+            Toast.error(`Erro ao excluir usuário: ${err.message || 'Tente novamente.'}`);
+            btn.disabled = false;
+            btn.innerHTML = `${Icons.x} Excluir`;
           }
         });
       });
