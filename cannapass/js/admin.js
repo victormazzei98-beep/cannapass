@@ -788,7 +788,14 @@ const Admin = (() => {
                 <td><span class="badge badge-${getStatusBadgeType(p.status)}">${getStatusLabel(p.status)}</span></td>
                 <td>${formatDate(p.created_at)}</td>
                 <td>
-                  <button class="btn btn-sm btn-secondary cadastro-view-btn" data-id="${p.id}">Ver</button>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="btn btn-sm btn-secondary cadastro-view-btn" data-id="${p.id}">Ver</button>
+                    <button class="btn btn-sm btn-danger cadastro-delete-btn"
+                      data-id="${p.id}" data-user-id="${p.user_id}" data-name="${sanitizeHTML(p.full_name || '')}"
+                      title="Excluir cadastro">
+                      ${Icons.x}
+                    </button>
+                  </div>
                 </td>
               </tr>
             `).join('')}
@@ -801,11 +808,75 @@ const Admin = (() => {
         btn.addEventListener('click', () => showCadastroDetail(btn.dataset.id));
       });
 
+      // Bind delete buttons
+      content.querySelectorAll('.cadastro-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteCadastro(btn.dataset.id, btn.dataset.userId, btn.dataset.name, btn));
+      });
+
       updatePagination('cadastros-pagination', count || 0);
 
     } catch (err) {
       console.error('[Admin] Cadastros error:', err);
       content.innerHTML = '<p class="text-muted text-center">Erro ao carregar cadastros.</p>';
+    }
+  }
+
+  async function deleteCadastro(patientId, userId, patientName, btnEl) {
+    const confirmed = await Modal.open({
+      title: 'Excluir Cadastro',
+      body: `Tem certeza que deseja excluir o cadastro de "${patientName}"? Todos os documentos, QR Codes e dados de viagem vinculados serao removidos. Esta acao e irreversivel.`,
+      confirmText: 'Excluir Cadastro',
+      cancelText: 'Cancelar',
+      danger: true
+    });
+
+    if (!confirmed) return;
+
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<div class="spinner spinner-sm"></div>';
+
+    try {
+      // 1. Delete travel_data for this patient
+      await sb.from('travel_data').delete().eq('patient_id', patientId);
+
+      // 2. Get QR codes to delete verifications
+      const { data: qrCodes } = await sb.from('qr_codes').select('id').eq('patient_id', patientId);
+      if (qrCodes?.length) {
+        const qrIds = qrCodes.map(q => q.id);
+        for (const qrId of qrIds) {
+          await sb.from('verifications').delete().eq('qr_code_id', qrId);
+        }
+      }
+
+      // 3. Delete QR codes
+      await sb.from('qr_codes').delete().eq('patient_id', patientId);
+
+      // 4. Delete documents (also remove files from storage)
+      const { data: docs } = await sb.from('documents').select('file_path').eq('patient_id', patientId);
+      if (docs?.length) {
+        const paths = docs.map(d => d.file_path).filter(Boolean);
+        if (paths.length) {
+          await sb.storage.from(STORAGE_BUCKET).remove(paths);
+        }
+      }
+      await sb.from('documents').delete().eq('patient_id', patientId);
+
+      // 5. Delete the patient record
+      const { error } = await sb.from('patients').delete().eq('id', patientId);
+      if (error) throw error;
+
+      Toast.success(`Cadastro de "${patientName}" excluido com sucesso!`);
+      loadCadastros();
+
+      // Clear detail area if open
+      const detailArea = document.getElementById('cadastro-detail-area');
+      if (detailArea) detailArea.innerHTML = '';
+
+    } catch (err) {
+      console.error('[Admin] Delete cadastro error:', err);
+      Toast.error(`Erro ao excluir cadastro: ${err.message || 'Tente novamente.'}`);
+      btnEl.disabled = false;
+      btnEl.innerHTML = Icons.x;
     }
   }
 
