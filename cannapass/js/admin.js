@@ -1238,10 +1238,17 @@ const Admin = (() => {
                   <td><span class="badge badge-${st.type}">${st.label}</span></td>
                   <td>${formatDate(qr.created_at)}</td>
                   <td>
-                    <button class="btn btn-sm ${qr.is_active ? 'btn-danger' : 'btn-success'} qr-toggle-btn"
-                      data-id="${qr.id}" data-active="${qr.is_active}">
-                      ${qr.is_active ? 'Desativar' : 'Ativar'}
-                    </button>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                      <button class="btn btn-sm ${qr.is_active ? 'btn-danger' : 'btn-success'} qr-toggle-btn"
+                        data-id="${qr.id}" data-active="${qr.is_active}">
+                        ${qr.is_active ? 'Desativar' : 'Ativar'}
+                      </button>
+                      <button class="btn btn-sm btn-danger qr-delete-btn"
+                        data-id="${qr.id}" data-name="${sanitizeHTML(qr.patient_name || '')}"
+                        title="Excluir QR Code">
+                        ${Icons.x}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               `;
@@ -1253,6 +1260,11 @@ const Admin = (() => {
       // Bind toggle buttons
       content.querySelectorAll('.qr-toggle-btn').forEach(btn => {
         btn.addEventListener('click', () => toggleQR(btn.dataset.id, btn.dataset.active === 'true'));
+      });
+
+      // Bind delete buttons
+      content.querySelectorAll('.qr-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteQR(btn.dataset.id, btn.dataset.name, btn));
       });
 
       updatePagination('qr-pagination', count || 0);
@@ -1282,6 +1294,41 @@ const Admin = (() => {
     } catch (err) {
       console.error('[Admin] Toggle QR error:', err);
       Toast.error('Erro ao alterar status do QR Code.');
+    }
+  }
+
+  async function deleteQR(qrId, patientName, btnEl) {
+    const confirmed = await Modal.open({
+      title: 'Excluir QR Code',
+      body: `Tem certeza que deseja excluir permanentemente o QR Code de "${patientName}"? Os dados de viagem vinculados e verificacoes tambem serao removidos. Esta acao e irreversivel.`,
+      confirmText: 'Excluir Permanentemente',
+      cancelText: 'Cancelar',
+      danger: true
+    });
+
+    if (!confirmed) return;
+
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<div class="spinner spinner-sm"></div>';
+
+    try {
+      // 1. Delete travel_data linked to this QR
+      await sb.from('travel_data').delete().eq('qr_code_id', qrId);
+
+      // 2. Delete verifications linked to this QR
+      await sb.from('verifications').delete().eq('qr_code_id', qrId);
+
+      // 3. Delete the QR code itself
+      const { error } = await sb.from('qr_codes').delete().eq('id', qrId);
+      if (error) throw error;
+
+      Toast.success('QR Code excluido com sucesso!');
+      loadQRCodes();
+    } catch (err) {
+      console.error('[Admin] Delete QR error:', err);
+      Toast.error(`Erro ao excluir QR Code: ${err.message || 'Tente novamente.'}`);
+      btnEl.disabled = false;
+      btnEl.innerHTML = Icons.x;
     }
   }
 
