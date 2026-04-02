@@ -918,8 +918,8 @@ const Patient = (() => {
         ? 'RDC ANVISA nº 327/2019'
         : `HC ${patient.process_number || '—'} — ${patient.court || '—'}`;
 
-      // Set expiry to end of departure day
-      const expiresAt = new Date(departure + 'T23:59:59');
+      // QR Code expires 48 hours after creation
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
       const { data: qr, error: qrError } = await sb
         .from('qr_codes')
@@ -1016,15 +1016,28 @@ const Patient = (() => {
     const qr = qrCodes[0];
     // travel_data is a reverse FK relation — returns array
     const travel = Array.isArray(qr.travel_data) ? qr.travel_data[0] : qr.travel_data;
-    const isExpired = qr.expires_at && !isFutureDate(qr.expires_at);
+    const expiresDate = qr.expires_at ? new Date(qr.expires_at) : null;
+    const isExpired = expiresDate ? expiresDate <= new Date() : false;
     const qrUrl = `${window.location.origin}${window.location.pathname}${PUBLIC_VERIFY_HASH}${qr.token}`;
+
+    // Calculate remaining time
+    let expiryText = '';
+    if (isExpired) {
+      expiryText = `${Icons.warning} QR Code expirado — será removido automaticamente`;
+    } else if (expiresDate) {
+      const hoursLeft = Math.max(0, Math.floor((expiresDate - new Date()) / (1000 * 60 * 60)));
+      const minsLeft = Math.max(0, Math.floor(((expiresDate - new Date()) % (1000 * 60 * 60)) / (1000 * 60)));
+      expiryText = hoursLeft > 0
+        ? `${Icons.success} Válido por ${hoursLeft}h${minsLeft > 0 ? `${minsLeft}min` : ''} — expira em ${formatDateTime(qr.expires_at)}`
+        : `${Icons.warning} Expira em ${minsLeft} minutos`;
+    }
 
     content.innerHTML = `
       <div class="qr-display">
         <canvas id="qr-canvas"></canvas>
 
         <div class="qr-expiry ${isExpired ? 'expired' : 'valid'}">
-          ${isExpired ? `${Icons.warning} QR Code expirado` : `${Icons.success} Válido até ${formatDate(qr.expires_at)}`}
+          ${expiryText}
         </div>
 
         <div class="qr-meta">
