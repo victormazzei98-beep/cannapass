@@ -581,3 +581,140 @@
     align-items: stretch;
   }
 }
+
+/* ═══════════════════════════════════════════
+   TRANSPORT MAP — Brazil Routes
+   ═══════════════════════════════════════════ */
+.transport-map-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: 500px;
+}
+
+#transport-map {
+  min-height: 500px;
+  border-radius: 0 0 0 var(--radius);
+}
+
+#transport-map .leaflet-container,
+.leaflet-container {
+  background: var(--surface-2) !important;
+  font-family: var(--font-body) !important;
+}
+
+.transport-stats-panel {
+  padding: 1.25rem;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  max-height: 540px;
+}
+
+.map-stat-section {
+  margin-bottom: 1.25rem;
+}
+
+.map-stat-section:last-child {
+  margin-bottom: 0;
+}
+
+.map-stat-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.map-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 0.25rem;
+}
+
+.map-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  gap: 0.5rem;
+}
+
+.map-stat-label {
+  color: var(--text-2);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.map-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.map-empty-state h4 {
+  color: var(--text);
+  margin: 0.5rem 0 0.25rem;
+}
+
+/* Leaflet theme overrides */
+.leaflet-tooltip.map-tooltip {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  border-radius: var(--radius-xs) !important;
+  box-shadow: var(--shadow-sm) !important;
+  padding: 8px 12px !important;
+  font-size: 0.8rem !important;
+  font-family: var(--font-body) !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-tooltip.map-tooltip::before {
+  border-top-color: var(--border) !important;
+}
+
+.leaflet-control-zoom a {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  transition: background var(--transition-fast) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--surface-2) !important;
+}
+
+.route-line-animated {
+  stroke-dasharray: 12 8;
+  animation: dash-flow 30s linear infinite;
+}
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: -300; }
+}
+
+@media (max-width: 768px) {
+  .transport-map-grid {
+    grid-template-columns: 1fr;
+  }
+  #transport-map {
+    min-height: 350px;
+    border-radius: 0;
+  }
+  .transport-stats-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: none;
+  }
+}

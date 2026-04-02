@@ -13,6 +13,80 @@ const Admin = (() => {
   let verificacoesPage = 0;
   let qrPage = 0;
   let usuariosPage = 0;
+  let transportMap = null;
+
+  // ─── Brazil Cities Coordinates (state capitals + major transport hubs) ───
+  const BRAZIL_CITIES = {
+    'rio branco':      { lat: -9.975,  lng: -67.810, uf: 'AC', name: 'Rio Branco' },
+    'maceió':          { lat: -9.666,  lng: -35.735, uf: 'AL', name: 'Maceió' },
+    'macapá':          { lat:  0.035,  lng: -51.066, uf: 'AP', name: 'Macapá' },
+    'manaus':          { lat: -3.119,  lng: -60.022, uf: 'AM', name: 'Manaus' },
+    'salvador':        { lat: -12.971, lng: -38.512, uf: 'BA', name: 'Salvador' },
+    'fortaleza':       { lat: -3.717,  lng: -38.543, uf: 'CE', name: 'Fortaleza' },
+    'brasília':        { lat: -15.798, lng: -47.892, uf: 'DF', name: 'Brasília' },
+    'vitória':         { lat: -20.315, lng: -40.313, uf: 'ES', name: 'Vitória' },
+    'goiânia':         { lat: -16.687, lng: -49.265, uf: 'GO', name: 'Goiânia' },
+    'são luís':        { lat: -2.530,  lng: -44.283, uf: 'MA', name: 'São Luís' },
+    'cuiabá':          { lat: -15.601, lng: -56.098, uf: 'MT', name: 'Cuiabá' },
+    'campo grande':    { lat: -20.470, lng: -54.620, uf: 'MS', name: 'Campo Grande' },
+    'belo horizonte':  { lat: -19.917, lng: -43.935, uf: 'MG', name: 'Belo Horizonte' },
+    'belém':           { lat: -1.456,  lng: -48.502, uf: 'PA', name: 'Belém' },
+    'joão pessoa':     { lat: -7.120,  lng: -34.845, uf: 'PB', name: 'João Pessoa' },
+    'curitiba':        { lat: -25.428, lng: -49.273, uf: 'PR', name: 'Curitiba' },
+    'recife':          { lat: -8.048,  lng: -34.877, uf: 'PE', name: 'Recife' },
+    'teresina':        { lat: -5.089,  lng: -42.802, uf: 'PI', name: 'Teresina' },
+    'rio de janeiro':  { lat: -22.907, lng: -43.173, uf: 'RJ', name: 'Rio de Janeiro' },
+    'natal':           { lat: -5.795,  lng: -35.211, uf: 'RN', name: 'Natal' },
+    'porto alegre':    { lat: -30.035, lng: -51.218, uf: 'RS', name: 'Porto Alegre' },
+    'porto velho':     { lat: -8.761,  lng: -63.900, uf: 'RO', name: 'Porto Velho' },
+    'boa vista':       { lat:  2.820,  lng: -60.671, uf: 'RR', name: 'Boa Vista' },
+    'florianópolis':   { lat: -27.595, lng: -48.548, uf: 'SC', name: 'Florianópolis' },
+    'são paulo':       { lat: -23.551, lng: -46.633, uf: 'SP', name: 'São Paulo' },
+    'aracaju':         { lat: -10.909, lng: -37.068, uf: 'SE', name: 'Aracaju' },
+    'palmas':          { lat: -10.169, lng: -48.332, uf: 'TO', name: 'Palmas' },
+    // Major transport hubs
+    'campinas':        { lat: -22.910, lng: -47.063, uf: 'SP', name: 'Campinas' },
+    'guarulhos':       { lat: -23.454, lng: -46.533, uf: 'SP', name: 'Guarulhos' },
+    'ribeirão preto':  { lat: -21.177, lng: -47.810, uf: 'SP', name: 'Ribeirão Preto' },
+    'santos':          { lat: -23.961, lng: -46.334, uf: 'SP', name: 'Santos' },
+    'sorocaba':        { lat: -23.502, lng: -47.458, uf: 'SP', name: 'Sorocaba' },
+    'londrina':        { lat: -23.310, lng: -51.163, uf: 'PR', name: 'Londrina' },
+    'uberlândia':      { lat: -18.919, lng: -48.277, uf: 'MG', name: 'Uberlândia' },
+    'juiz de fora':    { lat: -21.764, lng: -43.350, uf: 'MG', name: 'Juiz de Fora' },
+    'joinville':       { lat: -26.304, lng: -48.846, uf: 'SC', name: 'Joinville' },
+    'niterói':         { lat: -22.884, lng: -43.104, uf: 'RJ', name: 'Niterói' },
+    'foz do iguaçu':   { lat: -25.516, lng: -54.585, uf: 'PR', name: 'Foz do Iguaçu' },
+    'maringá':         { lat: -23.421, lng: -51.933, uf: 'PR', name: 'Maringá' },
+    'goiania':         { lat: -16.687, lng: -49.265, uf: 'GO', name: 'Goiânia' },
+    'são josé dos campos': { lat: -23.190, lng: -45.884, uf: 'SP', name: 'São José dos Campos' },
+    'feira de santana': { lat: -12.267, lng: -38.967, uf: 'BA', name: 'Feira de Santana' },
+    'caruaru':         { lat: -8.284,  lng: -35.976, uf: 'PE', name: 'Caruaru' },
+  };
+
+  const UF_NAMES = {
+    'AC': 'Acre', 'AL': 'Alagoas', 'AM': 'Amazonas', 'AP': 'Amapá',
+    'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
+    'GO': 'Goiás', 'MA': 'Maranhão', 'MG': 'Minas Gerais', 'MS': 'Mato Grosso do Sul',
+    'MT': 'Mato Grosso', 'PA': 'Pará', 'PB': 'Paraíba', 'PE': 'Pernambuco',
+    'PI': 'Piauí', 'PR': 'Paraná', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
+    'RO': 'Rondônia', 'RR': 'Roraima', 'RS': 'Rio Grande do Sul', 'SC': 'Santa Catarina',
+    'SE': 'Sergipe', 'SP': 'São Paulo', 'TO': 'Tocantins'
+  };
+
+  const STATE_NAME_TO_UF = {
+    'acre': 'AC', 'alagoas': 'AL', 'amazonas': 'AM', 'amapá': 'AP', 'amapa': 'AP',
+    'bahia': 'BA', 'ceará': 'CE', 'ceara': 'CE', 'distrito federal': 'DF',
+    'espírito santo': 'ES', 'espirito santo': 'ES', 'goiás': 'GO', 'goias': 'GO',
+    'maranhão': 'MA', 'maranhao': 'MA', 'minas gerais': 'MG',
+    'mato grosso do sul': 'MS', 'mato grosso': 'MT',
+    'pará': 'PA', 'para': 'PA', 'paraíba': 'PB', 'paraiba': 'PB',
+    'pernambuco': 'PE', 'piauí': 'PI', 'piaui': 'PI',
+    'paraná': 'PR', 'parana': 'PR', 'rio de janeiro': 'RJ',
+    'rio grande do norte': 'RN', 'rio grande do sul': 'RS',
+    'rondônia': 'RO', 'rondonia': 'RO', 'roraima': 'RR',
+    'santa catarina': 'SC', 'são paulo': 'SP', 'sao paulo': 'SP',
+    'sergipe': 'SE', 'tocantins': 'TO'
+  };
 
   function render(page, container) {
     switch (page) {
@@ -89,10 +163,28 @@ const Admin = (() => {
           </div>
         </div>
       </div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Mapa de Transportes — Brasil</h3>
+            <p class="text-sm text-muted" style="margin-top:2px;">Principais pontos e rotas de transporte de cannabis medicinal</p>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <div class="transport-map-grid">
+            <div id="transport-map"></div>
+            <div id="transport-stats" class="transport-stats-panel">
+              <div class="flex-center" style="padding: 2rem;"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
     `;
 
     loadAdminStats();
     loadCharts();
+    loadTransportMap();
   }
 
   async function loadAdminStats() {
@@ -214,6 +306,362 @@ const Admin = (() => {
     } catch (err) {
       console.error('[Admin] Charts error:', err);
     }
+  }
+
+  // ═══════════════════════════════════════════
+  //  TRANSPORT MAP — Brazil Routes
+  // ═══════════════════════════════════════════
+
+  function normalizeText(text) {
+    return (text || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  function matchCity(text) {
+    if (!text) return null;
+    const normalized = normalizeText(text);
+
+    // Exact match (with accents removed)
+    for (const [key, data] of Object.entries(BRAZIL_CITIES)) {
+      if (normalizeText(key) === normalized) return data;
+    }
+
+    // Partial match — input contains city name or vice versa
+    for (const [key, data] of Object.entries(BRAZIL_CITIES)) {
+      const nk = normalizeText(key);
+      if (normalized.includes(nk) || nk.includes(normalized)) return data;
+    }
+
+    // Match by UF code (e.g. "SP", "RJ") → return state capital
+    if (normalized.length === 2) {
+      const uf = normalized.toUpperCase();
+      if (UF_NAMES[uf]) {
+        for (const [, data] of Object.entries(BRAZIL_CITIES)) {
+          if (data.uf === uf) return data;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function processRouteData(travelData) {
+    const cityActivity = {};
+    const stateActivity = {};
+    const routeMap = {};
+    const transportTypes = {};
+
+    for (const trip of travelData) {
+      const originCoords = matchCity(trip.origin);
+      const destCoords = matchCity(trip.destination);
+
+      // Count transport types
+      const tType = trip.transport_type || 'outro';
+      transportTypes[tType] = (transportTypes[tType] || 0) + 1;
+
+      if (originCoords) {
+        const key = normalizeText(originCoords.name);
+        if (!cityActivity[key]) cityActivity[key] = { ...originCoords, count: 0 };
+        cityActivity[key].count++;
+        stateActivity[originCoords.uf] = (stateActivity[originCoords.uf] || 0) + 1;
+      }
+
+      if (destCoords) {
+        const key = normalizeText(destCoords.name);
+        if (!cityActivity[key]) cityActivity[key] = { ...destCoords, count: 0 };
+        cityActivity[key].count++;
+        stateActivity[destCoords.uf] = (stateActivity[destCoords.uf] || 0) + 1;
+      }
+
+      if (originCoords && destCoords) {
+        const routeKey = `${originCoords.name}→${destCoords.name}`;
+        routeMap[routeKey] = (routeMap[routeKey] || { from: originCoords, to: destCoords, count: 0 });
+        routeMap[routeKey].count++;
+      }
+    }
+
+    const routes = Object.entries(routeMap)
+      .map(([key, val]) => ({ ...val, label: key }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      cities: Object.values(cityActivity),
+      states: stateActivity,
+      routes,
+      transportTypes,
+      totalTrips: travelData.length
+    };
+  }
+
+  async function loadTransportMap() {
+    const mapContainer = document.getElementById('transport-map');
+    const statsContainer = document.getElementById('transport-stats');
+    if (!mapContainer) return;
+
+    // Check if Leaflet is loaded
+    if (typeof L === 'undefined') {
+      mapContainer.innerHTML = '<div class="map-empty-state"><p class="text-muted">Biblioteca de mapa indisponível.</p></div>';
+      if (statsContainer) statsContainer.innerHTML = '';
+      return;
+    }
+
+    try {
+      // 1. Load travel data from Supabase
+      const { data: travelData, error } = await sb.from('travel_data')
+        .select('origin, destination, transport_type, departure_date')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // 2. Process route data
+      const routeData = processRouteData(travelData || []);
+
+      // 3. Fetch Brazil GeoJSON (state borders)
+      let geojson = null;
+      try {
+        const resp = await fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson');
+        if (resp.ok) geojson = await resp.json();
+      } catch (e) {
+        console.warn('[Admin] GeoJSON fetch failed, map will render without state borders:', e);
+      }
+
+      // 4. Initialize map
+      initBrazilMap(mapContainer, geojson, routeData);
+
+      // 5. Render stats panel
+      renderMapStats(statsContainer, routeData);
+
+    } catch (err) {
+      console.error('[Admin] Transport map error:', err);
+      mapContainer.innerHTML = '<div class="map-empty-state"><p class="text-muted">Erro ao carregar mapa de transportes.</p></div>';
+    }
+  }
+
+  function initBrazilMap(container, geojson, routeData) {
+    // Destroy previous map instance
+    if (transportMap) {
+      transportMap.remove();
+      transportMap = null;
+    }
+
+    // Create map centered on Brazil
+    transportMap = L.map(container, {
+      center: [-14.5, -53.0],
+      zoom: 4,
+      zoomControl: true,
+      attributionControl: false,
+      scrollWheelZoom: false,
+      dragging: true,
+      maxBounds: [[-36, -76], [7, -28]],
+      minZoom: 3,
+      maxZoom: 8
+    });
+
+    // Detect theme for color adaptation
+    const isDark = document.documentElement.dataset.theme !== 'light';
+
+    const colors = {
+      stateDefault:  isDark ? '#1a2820' : '#d8f0e0',
+      stateBorder:   isDark ? '#264030' : '#a8c8b4',
+      stateActive1:  isDark ? '#0d6640' : '#b0dcc0',
+      stateActive2:  isDark ? '#1a9d5a' : '#60c890',
+      stateActive3:  isDark ? '#3dd68c' : '#1a9d5a',
+      markerColor:   '#3dd68c',
+      routeColor:    '#f0c060',
+      routeGlow:     isDark ? 'rgba(240,192,96,0.3)' : 'rgba(240,192,96,0.5)',
+    };
+
+    // Add GeoJSON state layer
+    if (geojson) {
+      const stateValues = Object.values(routeData.states);
+      const maxCount = stateValues.length ? Math.max(...stateValues) : 1;
+
+      const getStateStyle = (feature) => {
+        const name = (feature.properties?.name || '').toLowerCase();
+        const uf = STATE_NAME_TO_UF[name] || STATE_NAME_TO_UF[normalizeText(name)] || '';
+        const count = routeData.states[uf] || 0;
+        const intensity = maxCount > 0 ? count / maxCount : 0;
+
+        let fillColor = colors.stateDefault;
+        let fillOpacity = isDark ? 0.5 : 0.6;
+
+        if (count > 0) {
+          fillColor = intensity > 0.6 ? colors.stateActive3
+            : intensity > 0.3 ? colors.stateActive2
+            : colors.stateActive1;
+          fillOpacity = 0.55 + intensity * 0.25;
+        }
+
+        return { fillColor, weight: 1, opacity: 0.7, color: colors.stateBorder, fillOpacity };
+      };
+
+      const geojsonLayer = L.geoJSON(geojson, {
+        style: getStateStyle,
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties?.name || '';
+          const uf = STATE_NAME_TO_UF[name.toLowerCase()] || STATE_NAME_TO_UF[normalizeText(name)] || '';
+          const count = routeData.states[uf] || 0;
+          layer.bindTooltip(
+            count ? `<strong>${name} (${uf})</strong><br>${count} transporte(s)` : `<strong>${name}</strong>`,
+            { sticky: true, className: 'map-tooltip' }
+          );
+          layer.on('mouseover', function () { this.setStyle({ weight: 2, fillOpacity: 0.8 }); });
+          layer.on('mouseout', function () { geojsonLayer.resetStyle(this); });
+        }
+      }).addTo(transportMap);
+    }
+
+    // Add route lines (dashed, animated)
+    for (const route of routeData.routes) {
+      const from = [route.from.lat, route.from.lng];
+      const to = [route.to.lat, route.to.lng];
+
+      // Curved midpoint for visual appeal
+      const midLat = (from[0] + to[0]) / 2;
+      const midLng = (from[1] + to[1]) / 2;
+      const dx = to[1] - from[1];
+      const dy = to[0] - from[0];
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const offset = dist * 0.12;
+      const curvePoint = [midLat + (dx / (dist || 1)) * offset, midLng - (dy / (dist || 1)) * offset];
+
+      // Glow line (wider, transparent)
+      L.polyline([from, curvePoint, to], {
+        color: colors.routeGlow,
+        weight: 6,
+        opacity: 0.4,
+        smoothFactor: 1.5,
+        interactive: false
+      }).addTo(transportMap);
+
+      // Main route line
+      const line = L.polyline([from, curvePoint, to], {
+        color: colors.routeColor,
+        weight: 2.5,
+        opacity: 0.85,
+        dashArray: '10 6',
+        smoothFactor: 1.5,
+        className: 'route-line-animated'
+      }).bindTooltip(
+        `<strong>${route.label}</strong><br>${route.count} viagem(ns)`,
+        { sticky: true, className: 'map-tooltip' }
+      ).addTo(transportMap);
+    }
+
+    // Add city markers
+    const sortedCities = [...routeData.cities].sort((a, b) => a.count - b.count);
+    for (const city of sortedCities) {
+      const radius = Math.min(6 + city.count * 3, 16);
+
+      // Outer glow
+      L.circleMarker([city.lat, city.lng], {
+        radius: radius + 4,
+        fillColor: colors.markerColor,
+        color: 'transparent',
+        fillOpacity: 0.2,
+        interactive: false
+      }).addTo(transportMap);
+
+      // Main marker
+      L.circleMarker([city.lat, city.lng], {
+        radius,
+        fillColor: colors.markerColor,
+        color: isDark ? '#ffffff' : '#ffffff',
+        weight: 2,
+        opacity: 0.9,
+        fillOpacity: 0.85
+      }).bindTooltip(
+        `<strong>${city.name} (${city.uf})</strong><br>${city.count} transporte(s)`,
+        { className: 'map-tooltip' }
+      ).addTo(transportMap);
+    }
+  }
+
+  function renderMapStats(container, routeData) {
+    if (!container) return;
+
+    const { cities, routes, transportTypes, totalTrips, states } = routeData;
+
+    if (totalTrips === 0) {
+      container.innerHTML = `
+        <div class="map-empty-state">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.5;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h4>Nenhuma rota registrada</h4>
+          <p class="text-muted text-sm">As rotas aparecerão aqui quando pacientes registrarem suas viagens.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const topStates = Object.entries(states)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const topCities = [...cities].sort((a, b) => b.count - a.count).slice(0, 5);
+
+    const transportLabels = {
+      'aereo': 'Aéreo', 'rodoviario': 'Rodoviário',
+      'outro': 'Outro', 'Aéreo': 'Aéreo', 'Rodoviário': 'Rodoviário'
+    };
+
+    container.innerHTML = `
+      <div class="map-stat-section">
+        <h4 class="map-stat-title">Resumo de Transportes</h4>
+        <div class="map-stat-value">${totalTrips}</div>
+        <span class="text-sm text-muted">viagem(ns) registrada(s)</span>
+      </div>
+
+      ${topStates.length ? `
+        <div class="map-stat-section">
+          <h4 class="map-stat-title">Estados Mais Ativos</h4>
+          ${topStates.map(([uf, count]) => `
+            <div class="map-stat-row">
+              <span class="map-stat-label">${sanitizeHTML(UF_NAMES[uf] || uf)}</span>
+              <span class="badge badge-success">${count}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${topCities.length ? `
+        <div class="map-stat-section">
+          <h4 class="map-stat-title">Principais Cidades</h4>
+          ${topCities.map(c => `
+            <div class="map-stat-row">
+              <span class="map-stat-label">${sanitizeHTML(c.name)} <span class="text-muted">(${c.uf})</span></span>
+              <span class="badge badge-success">${c.count}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${routes.length ? `
+        <div class="map-stat-section">
+          <h4 class="map-stat-title">Principais Rotas</h4>
+          ${routes.slice(0, 5).map(r => `
+            <div class="map-stat-row">
+              <span class="map-stat-label text-sm">${sanitizeHTML(r.label)}</span>
+              <span class="badge badge-neutral">${r.count}x</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${Object.keys(transportTypes).length ? `
+        <div class="map-stat-section">
+          <h4 class="map-stat-title">Tipo de Transporte</h4>
+          ${Object.entries(transportTypes).map(([type, count]) => `
+            <div class="map-stat-row">
+              <span class="map-stat-label">${sanitizeHTML(transportLabels[type] || type)}</span>
+              <span class="badge badge-neutral">${count}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
   }
 
   // ═══════════════════════════════════════════
