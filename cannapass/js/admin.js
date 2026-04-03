@@ -1123,20 +1123,19 @@ const Admin = (() => {
   }
 
   // ─── Send email notification via Edge Function ───
-  async function sendNotification(type, patientEmail, patientName, rejectionReason) {
+  async function sendNotification(type, patientEmail, patientName, extra = {}) {
     try {
       const { data, error } = await sb.functions.invoke('send-notification', {
         body: {
           type,
           patient_email: patientEmail,
           patient_name: patientName,
-          rejection_reason: rejectionReason || undefined
+          ...extra
         }
       });
       if (error) console.warn('[Admin] Notification send warning:', error);
       else console.log('[Admin] Notification sent:', data);
     } catch (err) {
-      // Don't block the main flow if email fails
       console.warn('[Admin] Notification error (non-blocking):', err);
     }
   }
@@ -1291,7 +1290,7 @@ const Admin = (() => {
           isRenewal ? 'renewal_rejected' : 'rejected',
           patient.email,
           patient.full_name,
-          reason
+          { rejection_reason: reason }
         );
       }
     } catch (err) {

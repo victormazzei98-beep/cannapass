@@ -793,6 +793,17 @@ const Patient = (() => {
       }
       Router.navigate('dashboard');
 
+      // 8. Send confirmation email (non-blocking)
+      try {
+        sb.functions.invoke('send-notification', {
+          body: {
+            type: 'registration_submitted',
+            patient_email: wizardData.email || patient.email,
+            patient_name: patient.full_name
+          }
+        }).catch(err => console.warn('[Patient] Email notification error:', err));
+      } catch (_) { /* non-blocking */ }
+
     } catch (err) {
       console.error('[Patient] Submit error:', err);
       Toast.error(err.message || 'Erro ao enviar cadastro. Tente novamente.');
