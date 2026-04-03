@@ -13,7 +13,7 @@ const Patient = (() => {
     // Pharmacy fields
     doctor_name: '', doctor_crm: '', prescription_validity: '',
     // HC fields
-    process_number: '', court: '', hc_validity: '',
+    hc_number: '', salvo_conduto: '', court: '',
     documents: {}
   };
   let uploadedFiles = {};
@@ -154,9 +154,9 @@ const Patient = (() => {
         doctor_crm: patient.doctor_crm || '',
         prescription_validity: patient.prescription_validity || '',
         // HC fields
-        process_number: patient.process_number || '',
+        hc_number: patient.hc_number || '',
+        salvo_conduto: patient.salvo_conduto || '',
         court: patient.court || '',
-        hc_validity: patient.hc_validity || '',
         documents: {}
       };
     } else {
@@ -334,19 +334,19 @@ const Patient = (() => {
       <div id="hc-fields" class="via-extra-fields ${wizardData.via_type === VIA.HABEAS ? '' : 'hidden'}" style="margin-top:24px;">
         <h4 class="mb-md">Dados do Habeas Corpus</h4>
         <p class="text-muted mb-md" style="font-size:13px;">Todos os campos são obrigatórios. Sem essas informações o cadastro será negado.</p>
-        <div class="form-group">
-          <label class="form-label" for="w-process-number">Nº do Processo *</label>
-          <input class="form-input" type="text" id="w-process-number" placeholder="0000000-00.0000.0.00.0000" value="${sanitizeHTML(wizardData.process_number || '')}">
-        </div>
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label" for="w-court">Vara / Tribunal *</label>
-            <input class="form-input" type="text" id="w-court" placeholder="Ex: 1ª Vara Criminal — TJ/SP" value="${sanitizeHTML(wizardData.court || '')}">
+            <label class="form-label" for="w-hc-number">Habeas Corpus Número *</label>
+            <input class="form-input" type="text" id="w-hc-number" placeholder="Ex: 0000000-00.0000.0.00.0000" value="${sanitizeHTML(wizardData.hc_number || '')}">
           </div>
           <div class="form-group">
-            <label class="form-label" for="w-hc-validity">Validade do HC *</label>
-            <input class="form-input" type="date" id="w-hc-validity" value="${wizardData.hc_validity || ''}">
+            <label class="form-label" for="w-salvo-conduto">Salvo Conduto Número *</label>
+            <input class="form-input" type="text" id="w-salvo-conduto" placeholder="Ex: 0000000-00.0000.0.00.0000" value="${sanitizeHTML(wizardData.salvo_conduto || '')}">
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="w-court">Vara / Tribunal *</label>
+          <input class="form-input" type="text" id="w-court" placeholder="Ex: 1ª Vara Criminal — TJ/SP" value="${sanitizeHTML(wizardData.court || '')}">
         </div>
       </div>
     `;
@@ -468,9 +468,9 @@ const Patient = (() => {
           <div class="review-row"><span class="review-row-label">Médico</span><span class="review-row-value">${sanitizeHTML(wizardData.doctor_name)} — ${sanitizeHTML(wizardData.doctor_crm)}</span></div>
           <div class="review-row"><span class="review-row-label">Validade Prescrição</span><span class="review-row-value">${formatDate(wizardData.prescription_validity)}</span></div>
         ` : `
-          <div class="review-row"><span class="review-row-label">Nº Processo</span><span class="review-row-value">${sanitizeHTML(wizardData.process_number)}</span></div>
+          <div class="review-row"><span class="review-row-label">Habeas Corpus Nº</span><span class="review-row-value">${sanitizeHTML(wizardData.hc_number)}</span></div>
+          <div class="review-row"><span class="review-row-label">Salvo Conduto Nº</span><span class="review-row-value">${sanitizeHTML(wizardData.salvo_conduto)}</span></div>
           <div class="review-row"><span class="review-row-label">Vara / Tribunal</span><span class="review-row-value">${sanitizeHTML(wizardData.court)}</span></div>
-          <div class="review-row"><span class="review-row-label">Validade HC</span><span class="review-row-value">${formatDate(wizardData.hc_validity)}</span></div>
         `}
       </div>
 
@@ -509,9 +509,9 @@ const Patient = (() => {
           wizardData.doctor_crm = document.getElementById('w-doctor-crm')?.value.trim() || '';
           wizardData.prescription_validity = document.getElementById('w-prescription-validity')?.value || '';
         } else if (wizardData.via_type === VIA.HABEAS) {
-          wizardData.process_number = document.getElementById('w-process-number')?.value.trim() || '';
+          wizardData.hc_number = document.getElementById('w-hc-number')?.value.trim() || '';
+          wizardData.salvo_conduto = document.getElementById('w-salvo-conduto')?.value.trim() || '';
           wizardData.court = document.getElementById('w-court')?.value.trim() || '';
-          wizardData.hc_validity = document.getElementById('w-hc-validity')?.value || '';
         }
         break;
     }
@@ -535,9 +535,9 @@ const Patient = (() => {
           if (!wizardData.prescription_validity) { Toast.error('Informe a validade da prescrição.'); return false; }
         }
         if (wizardData.via_type === VIA.HABEAS) {
-          if (!wizardData.process_number) { Toast.error('Informe o Nº do Processo. Este campo é obrigatório para Habeas Corpus.'); return false; }
-          if (!wizardData.court) { Toast.error('Informe a Vara/Tribunal. Este campo é obrigatório para Habeas Corpus.'); return false; }
-          if (!wizardData.hc_validity) { Toast.error('Informe a validade do HC. Este campo é obrigatório para Habeas Corpus.'); return false; }
+          if (!wizardData.hc_number) { Toast.error('Informe o número do Habeas Corpus. Este campo é obrigatório.'); return false; }
+          if (!wizardData.salvo_conduto) { Toast.error('Informe o número do Salvo Conduto. Este campo é obrigatório.'); return false; }
+          if (!wizardData.court) { Toast.error('Informe a Vara/Tribunal. Este campo é obrigatório.'); return false; }
         }
         return true;
       case 3: {
@@ -617,9 +617,9 @@ const Patient = (() => {
         patientData.doctor_crm = wizardData.doctor_crm;
         patientData.prescription_validity = wizardData.prescription_validity;
       } else if (wizardData.via_type === VIA.HABEAS) {
-        patientData.process_number = wizardData.process_number;
+        patientData.hc_number = wizardData.hc_number;
+        patientData.salvo_conduto = wizardData.salvo_conduto;
         patientData.court = wizardData.court;
-        patientData.hc_validity = wizardData.hc_validity;
       }
 
       const { data: patient, error: patientError } = await sb
@@ -1015,7 +1015,7 @@ const Patient = (() => {
       const viaLabel = patient.via === 'pharmacy' ? 'Farmácia/Associação' : 'Habeas Corpus';
       const legalRef = patient.via === 'pharmacy'
         ? 'RDC ANVISA nº 327/2019'
-        : `HC ${patient.process_number || '—'} — ${patient.court || '—'}`;
+        : `HC ${patient.hc_number || '—'} — ${patient.court || '—'}`;
 
       // QR Code expires 48 hours after creation
       const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);

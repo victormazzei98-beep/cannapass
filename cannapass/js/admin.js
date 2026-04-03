@@ -960,9 +960,9 @@ const Admin = (() => {
             ` : p.via === 'hc' ? `
               <h4 class="mb-sm">Dados do Habeas Corpus</h4>
               <div class="detail-grid">
-                <div class="detail-item"><label>Nº Processo</label><span>${sanitizeHTML(p.process_number || '—')}</span></div>
-                <div class="detail-item"><label>Vara/Tribunal</label><span>${sanitizeHTML(p.court || '—')}</span></div>
-                <div class="detail-item"><label>Validade HC</label><span>${formatDate(p.hc_validity)}</span></div>
+                <div class="detail-item"><label>Habeas Corpus Nº</label><span>${sanitizeHTML(p.hc_number || '—')}</span></div>
+                <div class="detail-item"><label>Salvo Conduto Nº</label><span>${sanitizeHTML(p.salvo_conduto || '—')}</span></div>
+                <div class="detail-item"><label>Vara / Tribunal</label><span>${sanitizeHTML(p.court || '—')}</span></div>
               </div>
             ` : ''}
 

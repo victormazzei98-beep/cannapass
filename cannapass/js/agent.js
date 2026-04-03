@@ -429,16 +429,16 @@ const Agent = (() => {
                   </div>
                 ` : `
                   <div class="verification-field">
-                    <span class="text-muted text-sm">Número do Processo</span>
-                    <strong>${sanitizeHTML(patientData.process_number || '—')}</strong>
+                    <span class="text-muted text-sm">Habeas Corpus Nº</span>
+                    <strong>${sanitizeHTML(patientData.hc_number || '—')}</strong>
                   </div>
                   <div class="verification-field">
-                    <span class="text-muted text-sm">Tribunal</span>
+                    <span class="text-muted text-sm">Salvo Conduto Nº</span>
+                    <strong>${sanitizeHTML(patientData.salvo_conduto || '—')}</strong>
+                  </div>
+                  <div class="verification-field">
+                    <span class="text-muted text-sm">Vara / Tribunal</span>
                     <strong>${sanitizeHTML(patientData.court || '—')}</strong>
-                  </div>
-                  <div class="verification-field">
-                    <span class="text-muted text-sm">Validade do HC</span>
-                    <strong>${formatDate(patientData.hc_validity)}</strong>
                   </div>
                 `}
               </div>
