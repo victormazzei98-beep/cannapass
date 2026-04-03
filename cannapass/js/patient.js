@@ -1370,65 +1370,115 @@ const Patient = (() => {
   async function renderHistorico(container) {
     container.innerHTML = `
       <div class="page-header">
-        <h2>Histórico</h2>
-        <p>Viagens anteriores e verificações</p>
+        <h2>Historico</h2>
+        <p>Viagens anteriores e verificacoes dos seus QR Codes</p>
       </div>
+
+      <!-- Viagens -->
+      <div class="card mb-md">
+        <div class="card-header">
+          <h3 class="card-title">Viagens</h3>
+        </div>
+        <div class="card-body" id="history-travels">
+          <div class="flex-center"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Verificacoes -->
       <div class="card">
-        <div class="card-body" id="history-content">
+        <div class="card-header">
+          <h3 class="card-title">Verificacoes dos seus QR Codes</h3>
+          <span class="text-sm text-muted">Quando e onde agentes escanearam seu QR Code</span>
+        </div>
+        <div class="card-body" id="history-verifications">
           <div class="flex-center"><div class="spinner"></div></div>
         </div>
       </div>
     `;
 
     const userId = State.get('user')?.id;
-    const { data: travels, error } = await sb
-      .from('travel_data')
-      .select('*, qr_codes(*)')
-      .eq('user_id', userId)
-      .order('departure_date', { ascending: false });
 
-    const content = document.getElementById('history-content');
-    if (!content) return;
+    // Load both in parallel
+    const [travelsRes, verifsRes] = await Promise.all([
+      sb.from('travel_data').select('*, qr_codes(*)').eq('user_id', userId).order('departure_date', { ascending: false }),
+      sb.from('verifications').select('*, qr_codes!inner(user_id)').eq('qr_codes.user_id', userId).order('created_at', { ascending: false }).limit(50)
+    ]);
 
-    if (error || !travels?.length) {
-      content.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">${Icons['empty-clock']}</div>
-          <h4>Nenhum registro</h4>
-          <p>Seu histórico aparecerá aqui após sua primeira viagem.</p>
-        </div>
-      `;
-      return;
+    // ── Render Travels ──
+    const travelsEl = document.getElementById('history-travels');
+    if (travelsEl) {
+      const travels = travelsRes.data || [];
+      if (!travels.length) {
+        travelsEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['empty-clock']}</div>
+            <h4>Nenhuma viagem</h4>
+            <p>Seu historico aparecera aqui apos sua primeira viagem.</p>
+          </div>
+        `;
+      } else {
+        travelsEl.innerHTML = `
+          <table class="table">
+            <thead><tr><th>Rota</th><th>Data</th><th>Transporte</th><th>QR Code</th></tr></thead>
+            <tbody>
+              ${travels.map(t => {
+                const qr = Array.isArray(t.qr_codes) ? t.qr_codes[0] : t.qr_codes;
+                const expired = t.departure_date && !isFutureDate(t.departure_date);
+                return `<tr>
+                  <td>${sanitizeHTML(t.origin)} &rarr; ${sanitizeHTML(t.destination)}</td>
+                  <td>${formatDate(t.departure_date)}</td>
+                  <td>${getTransportLabel(t.transport_type)}</td>
+                  <td>${qr ? `<span class="badge badge-${expired ? 'warning' : 'success'}">${expired ? 'Expirado' : 'Ativo'}</span>` : '<span class="badge badge-neutral">&mdash;</span>'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      }
     }
 
-    content.innerHTML = `
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Rota</th>
-            <th>Data</th>
-            <th>Transporte</th>
-            <th>QR Code</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${travels.map(t => {
-            const qr = t.qr_codes?.[0];
-            const expired = t.departure_date && !isFutureDate(t.departure_date);
-            return `
-              <tr>
-                <td>${sanitizeHTML(t.origin)} → ${sanitizeHTML(t.destination)}</td>
-                <td>${formatDate(t.departure_date)}</td>
-                <td>${getTransportLabel(t.transport_type)}</td>
+    // ── Render Verifications ──
+    const verifsEl = document.getElementById('history-verifications');
+    if (verifsEl) {
+      const verifs = verifsRes.data || [];
+      if (verifsRes.error || !verifs.length) {
+        verifsEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['stat-verified'] || Icons.success}</div>
+            <h4>Nenhuma verificacao</h4>
+            <p>Quando um agente escanear seu QR Code, o registro aparecera aqui.</p>
+          </div>
+        `;
+      } else {
+        const resultIcons = {
+          valid: `<span class="badge badge-success">Valido</span>`,
+          invalid: `<span class="badge badge-danger">Invalido</span>`,
+          expired: `<span class="badge badge-warning">Expirado</span>`,
+          suspicious: `<span class="badge badge-danger">Suspeito</span>`
+        };
+
+        verifsEl.innerHTML = `
+          <div class="text-sm text-muted mb-sm">${verifs.length} verificacao(oes) encontrada(s)</div>
+          <table class="table">
+            <thead><tr><th>Data/Hora</th><th>Agente</th><th>Local</th><th>Resultado</th></tr></thead>
+            <tbody>
+              ${verifs.map(v => `<tr>
+                <td>${formatDateTime(v.created_at)}</td>
                 <td>
-                  ${qr ? `<span class="badge badge-${expired ? 'warning' : 'success'}">${expired ? 'Expirado' : 'Ativo'}</span>` : '<span class="badge badge-neutral">—</span>'}
+                  <strong>${sanitizeHTML(v.agent_name || 'Agente')}</strong>
+                  ${v.agent_organization ? `<br><span class="text-sm text-muted">${sanitizeHTML(v.agent_organization)}</span>` : ''}
                 </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
+                <td>
+                  ${sanitizeHTML(v.agent_location || '—')}
+                  ${v.latitude && v.longitude ? `<br><span class="text-sm text-muted">${v.latitude.toFixed(4)}, ${v.longitude.toFixed(4)}</span>` : ''}
+                </td>
+                <td>${resultIcons[v.result] || v.result}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+    }
   }
 
   // ─── Start Renewal Mode ───

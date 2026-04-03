@@ -1575,8 +1575,8 @@ const Admin = (() => {
   function renderRelatorios(container) {
     container.innerHTML = `
       <div class="page-header">
-        <h2>Relatórios</h2>
-        <p>Exporte dados em CSV ou PDF</p>
+        <h2>Relatorios</h2>
+        <p>Exporte dados e gere relatorios completos</p>
       </div>
 
       <div class="stats-grid" id="report-stats">
@@ -1610,15 +1610,61 @@ const Admin = (() => {
         </div>
       </div>
 
-      <div class="card">
+      <!-- Filtros de Periodo -->
+      <div class="card mb-md">
         <div class="card-header">
-          <h3 class="card-title">Exportar Dados</h3>
+          <h3 class="card-title">Filtrar por Periodo</h3>
         </div>
         <div class="card-body">
-          <p class="text-muted mb-md">Exporte os dados de cadastros de pacientes nos formatos disponíveis.</p>
-          <div class="btn-group">
-            <button class="btn btn-primary" id="export-csv-btn">${Icons.relatorios} Exportar CSV</button>
-            <button class="btn btn-secondary" id="export-pdf-btn">${Icons.documentos} Exportar PDF</button>
+          <div class="grid-2" style="max-width:500px;">
+            <div class="form-group">
+              <label class="form-label" for="report-date-from">Data Inicio</label>
+              <input type="date" id="report-date-from" class="form-input" value="${dayjs().subtract(30, 'day').format('YYYY-MM-DD')}">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="report-date-to">Data Fim</label>
+              <input type="date" id="report-date-to" class="form-input" value="${dayjs().format('YYYY-MM-DD')}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relatorio de Cadastros -->
+      <div class="card mb-md">
+        <div class="card-header">
+          <h3 class="card-title">Cadastros de Pacientes</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-md">Relatorio completo de todos os cadastros no periodo selecionado.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="export-cadastros-pdf">${Icons.documentos} PDF Cadastros</button>
+            <button class="btn btn-secondary" id="export-csv-btn">${Icons.relatorios} CSV Cadastros</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relatorio de Verificacoes -->
+      <div class="card mb-md">
+        <div class="card-header">
+          <h3 class="card-title">Verificacoes de Agentes</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-md">Log de todas as verificacoes de QR Code realizadas por agentes fiscalizadores.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="export-verificacoes-pdf">${Icons.documentos} PDF Verificacoes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relatorio Estatistico Completo -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Relatorio Estatistico Completo</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-md">Documento completo para prestacao de contas com estatisticas, graficos e resumo executivo.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="export-full-pdf">${Icons.documentos} PDF Completo</button>
           </div>
         </div>
       </div>
@@ -1627,7 +1673,9 @@ const Admin = (() => {
     loadReportStats();
 
     document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
-    document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
+    document.getElementById('export-cadastros-pdf').addEventListener('click', () => exportPDF('cadastros'));
+    document.getElementById('export-verificacoes-pdf').addEventListener('click', () => exportPDF('verificacoes'));
+    document.getElementById('export-full-pdf').addEventListener('click', () => exportPDF('completo'));
   }
 
   async function loadReportStats() {
@@ -1698,62 +1746,300 @@ const Admin = (() => {
     }
   }
 
-  async function exportPDF() {
+  // ─── PDF Helpers ───
+  function pdfHeader(doc, title, subtitle) {
+    const dateFrom = document.getElementById('report-date-from')?.value || '';
+    const dateTo = document.getElementById('report-date-to')?.value || '';
+    const periodo = dateFrom && dateTo ? `${formatDate(dateFrom)} a ${formatDate(dateTo)}` : 'Todos os periodos';
+
+    doc.setFontSize(20);
+    doc.setTextColor(34, 197, 94);
+    doc.text('Cannapass', 14, 20);
+    doc.setFontSize(13);
+    doc.setTextColor(60);
+    doc.text(title, 14, 28);
+    doc.setFontSize(9);
+    doc.setTextColor(130);
+    doc.text(subtitle || `Periodo: ${periodo}`, 14, 34);
+    doc.text(`Gerado em: ${formatDateTime(new Date().toISOString())}`, 14, 40);
+    return 48;
+  }
+
+  function pdfFooter(doc) {
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(
+        `Cannapass — Pagina ${i} de ${pageCount} — Documento confidencial`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+  }
+
+  function getDateRange() {
+    const from = document.getElementById('report-date-from')?.value;
+    const to = document.getElementById('report-date-to')?.value;
+    return { from, to };
+  }
+
+  async function exportPDF(type = 'cadastros') {
     try {
       Toast.info('Gerando PDF...');
-      const { data, error } = await sb.from('patients').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      if (!data?.length) { Toast.warning('Nenhum dado para exportar.'); return; }
+      const { from, to } = getDateRange();
 
-      const doc = new jspdf.jsPDF();
+      if (type === 'cadastros') await exportPDFCadastros(from, to);
+      else if (type === 'verificacoes') await exportPDFVerificacoes(from, to);
+      else if (type === 'completo') await exportPDFCompleto(from, to);
 
-      // Header
-      doc.setFontSize(18);
-      doc.setTextColor(34, 197, 94);
-      doc.text('Cannapass', 14, 20);
-      doc.setFontSize(12);
-      doc.setTextColor(100);
-      doc.text('Relatório de Cadastros', 14, 28);
-      doc.setFontSize(9);
-      doc.text(`Gerado em: ${formatDateTime(new Date().toISOString())}`, 14, 34);
-
-      // Table
-      const tableData = data.map(p => [
-        p.full_name || '',
-        (p.cpf || '').replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4'),
-        getViaLabel(p.via) || '',
-        p.product_name || '',
-        p.transport_quantity || '',
-        getStatusLabel(p.status),
-        formatDate(p.created_at)
-      ]);
-
-      doc.autoTable({
-        startY: 40,
-        head: [['Nome', 'CPF', 'Via', 'Produto', 'Qtd.', 'Status', 'Data']],
-        body: tableData,
-        styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: [34, 197, 94], textColor: 255 },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
-        didDrawPage: function (data) {
-          // Footer with page number
-          doc.setFontSize(8);
-          doc.setTextColor(150);
-          doc.text(
-            `Cannapass — Página ${doc.internal.getCurrentPageInfo().pageNumber}`,
-            doc.internal.pageSize.getWidth() / 2,
-            doc.internal.pageSize.getHeight() - 10,
-            { align: 'center' }
-          );
-        }
-      });
-
-      doc.save(`cannapass-relatorio-${dayjs().format('YYYY-MM-DD')}.pdf`);
-      Toast.success('PDF exportado com sucesso!');
     } catch (err) {
       console.error('[Admin] PDF export error:', err);
       Toast.error('Erro ao exportar PDF.');
     }
+  }
+
+  async function exportPDFCadastros(from, to) {
+    let query = sb.from('patients').select('*').order('created_at', { ascending: false });
+    if (from) query = query.gte('created_at', `${from}T00:00:00`);
+    if (to) query = query.lte('created_at', `${to}T23:59:59`);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data?.length) { Toast.warning('Nenhum cadastro no periodo.'); return; }
+
+    const doc = new jspdf.jsPDF();
+    let y = pdfHeader(doc, 'Relatorio de Cadastros', `${data.length} cadastros encontrados`);
+
+    // Summary stats
+    const approved = data.filter(p => p.status === 'approved').length;
+    const pending = data.filter(p => p.status === 'pending' || p.status === 'renewal_pending').length;
+    const rejected = data.filter(p => p.status === 'rejected').length;
+    const pharmacy = data.filter(p => p.via === 'pharmacy').length;
+    const hc = data.filter(p => p.via === 'hc').length;
+
+    doc.setFontSize(10);
+    doc.setTextColor(60);
+    doc.text(`Resumo: ${approved} aprovados | ${pending} pendentes | ${rejected} rejeitados | ${pharmacy} farmacia | ${hc} HC`, 14, y);
+    y += 10;
+
+    const tableData = data.map(p => [
+      p.full_name || '',
+      maskCPF(p.cpf || ''),
+      getViaLabel(p.via) || '',
+      p.product_name || '—',
+      p.transport_quantity || '—',
+      getStatusLabel(p.status),
+      formatDate(p.created_at)
+    ]);
+
+    doc.autoTable({
+      startY: y,
+      head: [['Nome', 'CPF', 'Via', 'Produto', 'Qtd.', 'Status', 'Data']],
+      body: tableData,
+      styles: { fontSize: 7.5, cellPadding: 2.5 },
+      headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] }
+    });
+
+    pdfFooter(doc);
+    doc.save(`cannapass-cadastros-${dayjs().format('YYYY-MM-DD')}.pdf`);
+    Toast.success('PDF de cadastros exportado!');
+  }
+
+  async function exportPDFVerificacoes(from, to) {
+    let query = sb.from('verifications').select('*').order('created_at', { ascending: false });
+    if (from) query = query.gte('created_at', `${from}T00:00:00`);
+    if (to) query = query.lte('created_at', `${to}T23:59:59`);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data?.length) { Toast.warning('Nenhuma verificacao no periodo.'); return; }
+
+    const doc = new jspdf.jsPDF('l'); // landscape for more columns
+    let y = pdfHeader(doc, 'Relatorio de Verificacoes', `${data.length} verificacoes encontradas`);
+
+    const valid = data.filter(v => v.result === 'valid').length;
+    const invalid = data.filter(v => v.result !== 'valid').length;
+    doc.setFontSize(10);
+    doc.setTextColor(60);
+    doc.text(`Resumo: ${valid} validas | ${invalid} invalidas/expiradas/suspeitas`, 14, y);
+    y += 10;
+
+    const resultLabel = { valid: 'Valido', invalid: 'Invalido', expired: 'Expirado', suspicious: 'Suspeito' };
+
+    const tableData = data.map(v => [
+      sanitizeHTML(v.patient_name || '—'),
+      sanitizeHTML(v.agent_name || '—'),
+      sanitizeHTML(v.agent_organization || '—'),
+      sanitizeHTML(v.agent_location || '—'),
+      resultLabel[v.result] || v.result,
+      v.latitude && v.longitude ? `${v.latitude.toFixed(3)}, ${v.longitude.toFixed(3)}` : '—',
+      formatDateTime(v.created_at)
+    ]);
+
+    doc.autoTable({
+      startY: y,
+      head: [['Paciente', 'Agente', 'Organizacao', 'Local', 'Resultado', 'Coordenadas', 'Data/Hora']],
+      body: tableData,
+      styles: { fontSize: 7, cellPadding: 2.5 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles: {
+        5: { cellWidth: 30 },
+        6: { cellWidth: 35 }
+      }
+    });
+
+    pdfFooter(doc);
+    doc.save(`cannapass-verificacoes-${dayjs().format('YYYY-MM-DD')}.pdf`);
+    Toast.success('PDF de verificacoes exportado!');
+  }
+
+  async function exportPDFCompleto(from, to) {
+    // Fetch all data in parallel
+    let pQuery = sb.from('patients').select('*').order('created_at', { ascending: false });
+    let vQuery = sb.from('verifications').select('*').order('created_at', { ascending: false });
+    let qQuery = sb.from('qr_codes').select('*').order('created_at', { ascending: false });
+    if (from) {
+      pQuery = pQuery.gte('created_at', `${from}T00:00:00`);
+      vQuery = vQuery.gte('created_at', `${from}T00:00:00`);
+      qQuery = qQuery.gte('created_at', `${from}T00:00:00`);
+    }
+    if (to) {
+      pQuery = pQuery.lte('created_at', `${to}T23:59:59`);
+      vQuery = vQuery.lte('created_at', `${to}T23:59:59`);
+      qQuery = qQuery.lte('created_at', `${to}T23:59:59`);
+    }
+
+    const [pRes, vRes, qRes] = await Promise.all([pQuery, vQuery, qQuery]);
+    const patients = pRes.data || [];
+    const verifs = vRes.data || [];
+    const qrCodes = qRes.data || [];
+
+    if (!patients.length && !verifs.length) { Toast.warning('Nenhum dado no periodo.'); return; }
+
+    const doc = new jspdf.jsPDF();
+    const dateFrom = from ? formatDate(from) : '—';
+    const dateTo = to ? formatDate(to) : '—';
+    let y = 15;
+
+    // ── Cover Page ──
+    doc.setFontSize(28);
+    doc.setTextColor(34, 197, 94);
+    doc.text('Cannapass', 105, 60, { align: 'center' });
+    doc.setFontSize(16);
+    doc.setTextColor(80);
+    doc.text('Relatorio Estatistico Completo', 105, 72, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setTextColor(130);
+    doc.text(`Periodo: ${dateFrom} a ${dateTo}`, 105, 82, { align: 'center' });
+    doc.text(`Gerado em: ${formatDateTime(new Date().toISOString())}`, 105, 90, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Plataforma Digital de Rastreamento e Fiscalizacao', 105, 110, { align: 'center' });
+    doc.text('Resolucao ANVISA RDC 327/2019 | Lei 11.343/2006 | LGPD', 105, 118, { align: 'center' });
+
+    // ── Page 2: Resumo Executivo ──
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.setTextColor(34, 197, 94);
+    doc.text('1. Resumo Executivo', 14, 20);
+    y = 30;
+
+    const approved = patients.filter(p => p.status === 'approved').length;
+    const pending = patients.filter(p => p.status === 'pending' || p.status === 'renewal_pending').length;
+    const rejected = patients.filter(p => p.status === 'rejected').length;
+    const renewalPending = patients.filter(p => p.status === 'renewal_pending').length;
+    const pharmacy = patients.filter(p => p.via === 'pharmacy').length;
+    const hc = patients.filter(p => p.via === 'hc').length;
+    const validVerifs = verifs.filter(v => v.result === 'valid').length;
+    const invalidVerifs = verifs.filter(v => v.result !== 'valid').length;
+    const activeQR = qrCodes.filter(q => q.is_active).length;
+
+    const summaryData = [
+      ['Total de Cadastros', String(patients.length)],
+      ['Cadastros Aprovados', String(approved)],
+      ['Cadastros Pendentes', String(pending)],
+      ['Cadastros Rejeitados', String(rejected)],
+      ['Renovacoes Pendentes', String(renewalPending)],
+      ['Via Farmacia/Associacao', String(pharmacy)],
+      ['Via Habeas Corpus', String(hc)],
+      ['', ''],
+      ['Total de Verificacoes', String(verifs.length)],
+      ['Verificacoes Validas', String(validVerifs)],
+      ['Verificacoes Invalidas', String(invalidVerifs)],
+      ['', ''],
+      ['QR Codes Gerados', String(qrCodes.length)],
+      ['QR Codes Ativos', String(activeQR)]
+    ];
+
+    doc.autoTable({
+      startY: y,
+      head: [['Indicador', 'Valor']],
+      body: summaryData,
+      styles: { fontSize: 10, cellPadding: 4 },
+      headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+      columnStyles: { 0: { cellWidth: 120 }, 1: { cellWidth: 40, halign: 'center', fontStyle: 'bold' } },
+      didParseCell: function(data) {
+        if (data.row.raw[0] === '' && data.section === 'body') {
+          data.cell.styles.fillColor = [255, 255, 255];
+          data.cell.styles.lineWidth = 0;
+        }
+      }
+    });
+
+    // ── Page 3: Cadastros ──
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.setTextColor(34, 197, 94);
+    doc.text('2. Cadastros de Pacientes', 14, 20);
+
+    if (patients.length) {
+      doc.autoTable({
+        startY: 28,
+        head: [['Nome', 'CPF', 'Via', 'Status', 'Data']],
+        body: patients.map(p => [
+          p.full_name || '',
+          maskCPF(p.cpf || ''),
+          getViaLabel(p.via) || '',
+          getStatusLabel(p.status),
+          formatDate(p.created_at)
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 2.5 },
+        headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+    }
+
+    // ── Page 4: Verificacoes ──
+    if (verifs.length) {
+      doc.addPage();
+      doc.setFontSize(16);
+      doc.setTextColor(59, 130, 246);
+      doc.text('3. Verificacoes de Agentes', 14, 20);
+
+      const resultLabel = { valid: 'Valido', invalid: 'Invalido', expired: 'Expirado', suspicious: 'Suspeito' };
+      doc.autoTable({
+        startY: 28,
+        head: [['Paciente', 'Agente', 'Local', 'Resultado', 'Data/Hora']],
+        body: verifs.map(v => [
+          v.patient_name || '—',
+          v.agent_name || '—',
+          v.agent_location || '—',
+          resultLabel[v.result] || v.result,
+          formatDateTime(v.created_at)
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 2.5 },
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+    }
+
+    pdfFooter(doc);
+    doc.save(`cannapass-completo-${dayjs().format('YYYY-MM-DD')}.pdf`);
+    Toast.success('Relatorio completo exportado!');
   }
 
   // ═══════════════════════════════════════════
