@@ -61,19 +61,31 @@ const Router = (() => {
   };
 
   // ─── Initialize Router ───
-  function init() {
-    if (_initialized) {
+  function init(forceRebuild = false) {
+    if (_initialized && !forceRebuild) {
       // Just navigate to current hash
       handleRoute();
       return;
     }
+
+    if (forceRebuild) {
+      // Clear hash so default page is loaded for new role
+      window.location.hash = '';
+    }
+
     _initialized = true;
 
     buildSidebar();
     updateUserInfo();
 
+    window.removeEventListener('hashchange', handleRoute);
     window.addEventListener('hashchange', handleRoute);
     handleRoute();
+  }
+
+  // ─── Get the effective role (activeRole for admins, profile.role for others) ───
+  function getEffectiveRole() {
+    return State.get('activeRole') || State.get('profile')?.role;
   }
 
   // ─── Handle Route Change ───
@@ -90,7 +102,7 @@ const Router = (() => {
     const profile = State.get('profile');
     if (!profile) return;
 
-    const role = profile.role;
+    const role = getEffectiveRole();
     const routes = ROUTES[role];
     if (!routes) return;
 
@@ -125,7 +137,7 @@ const Router = (() => {
     const profile = State.get('profile');
     if (!profile) return;
 
-    const role = profile.role;
+    const role = getEffectiveRole();
     const routes = ROUTES[role];
     const nav = document.getElementById('sidebar-nav');
     const badge = document.getElementById('sidebar-portal-badge');
@@ -155,14 +167,47 @@ const Router = (() => {
       });
     }
 
+    // Add "Switch Portal" button for admins
+    if (profile.role === ROLES.ADMIN) {
+      const otherPortal = role === ROLES.ADMIN ? 'Paciente' : 'Admin';
+      const switchIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`;
+      html += `
+        <div class="sidebar-section-label" style="margin-top: auto;">Portal</div>
+        <button class="sidebar-nav-item switch-portal-btn" aria-label="Trocar portal">
+          <span class="sidebar-nav-icon">${switchIcon}</span>
+          <span class="sidebar-nav-label">Trocar Portal</span>
+        </button>
+      `;
+    }
+
     nav.innerHTML = html;
 
-    // Click handlers
-    nav.addEventListener('click', (e) => {
-      const item = e.target.closest('.sidebar-nav-item');
-      if (!item) return;
-      navigate(item.dataset.page);
-    });
+    // Click handler for nav items
+    const clickHandler = (e) => {
+      const item = e.target.closest('.sidebar-nav-item:not(.switch-portal-btn)');
+      if (item) {
+        navigate(item.dataset.page);
+        return;
+      }
+
+      // Switch portal button
+      const switchBtn = e.target.closest('.switch-portal-btn');
+      if (switchBtn) {
+        // Reset activeRole and show portal select
+        State.set('activeRole', null);
+        _initialized = false;
+        document.getElementById('app-container')?.classList.add('hidden');
+        Auth.showPortalSelect();
+      }
+    };
+
+    // Replace listener (avoid stacking)
+    const newNav = nav.cloneNode(false);
+    newNav.innerHTML = html;
+    nav.parentNode.replaceChild(newNav, nav);
+    newNav.id = 'sidebar-nav';
+    newNav.setAttribute('aria-label', 'Menu principal');
+    newNav.addEventListener('click', clickHandler);
   }
 
   // ─── Update Active Nav Item ───

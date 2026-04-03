@@ -9,6 +9,7 @@ const State = (() => {
     user: null,           // Supabase auth user
     profile: null,        // profiles table row (role, full_name, etc.)
     patient: null,        // patients table row (registration data)
+    activeRole: null,     // role being used (admin can switch to patient)
     currentPage: null,    // current page/route identifier
     theme: null,          // 'dark' | 'light'
     sidebarOpen: false,   // mobile sidebar toggle

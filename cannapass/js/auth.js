@@ -44,12 +44,18 @@ const Auth = (() => {
         } else if (event === 'SIGNED_IN' && session) {
           await loadUserData(session.user);
           hideLoading();
-          showApp();
-          Router.init();
+          const profile = State.get('profile');
+          if (isAdminWithPortalChoice(profile) && !State.get('activeRole')) {
+            showPortalSelect();
+          } else {
+            showApp();
+            Router.init();
+          }
         } else if (event === 'SIGNED_OUT') {
           _isRecoveryFlow = false;
           State.reset();
           hideLoading();
+          document.getElementById('portal-select-container')?.classList.add('hidden');
           showAuth();
           resetForms();
         } else if (event === 'INITIAL_SESSION') {
@@ -80,8 +86,13 @@ const Auth = (() => {
         if (session) {
           await loadUserData(session.user);
           hideLoading();
-          showApp();
-          Router.init();
+          const prof = State.get('profile');
+          if (isAdminWithPortalChoice(prof) && !State.get('activeRole')) {
+            showPortalSelect();
+          } else {
+            showApp();
+            Router.init();
+          }
         } else {
           hideLoading();
           showAuth();
@@ -114,7 +125,7 @@ const Auth = (() => {
 
     State.set('profile', profile);
 
-    // If patient, load patient data
+    // If patient or non-admin, load patient data and set active role
     if (profile.role === ROLES.PATIENT) {
       const { data: patient } = await sb
         .from('patients')
@@ -123,9 +134,18 @@ const Auth = (() => {
         .single();
 
       State.set('patient', patient);
+      State.set('activeRole', ROLES.PATIENT);
+    } else if (profile.role === ROLES.AGENT) {
+      State.set('activeRole', ROLES.AGENT);
     }
+    // Admin activeRole is set via portal selection screen
 
     State.set('loading', false);
+  }
+
+  // ─── Check if user should see portal selector ───
+  function isAdminWithPortalChoice(profile) {
+    return profile && profile.role === ROLES.ADMIN;
   }
 
   // ─── Login ───
@@ -388,6 +408,51 @@ const Auth = (() => {
     }
   }
 
+  // ─── Portal Select for Admins ───
+  function showPortalSelect() {
+    document.getElementById('loading-screen')?.classList.add('hidden');
+    document.getElementById('auth-container')?.classList.add('hidden');
+    document.getElementById('app-container')?.classList.add('hidden');
+    document.getElementById('portal-select-container')?.classList.remove('hidden');
+
+    // Bind portal buttons
+    const btnPatient = document.getElementById('portal-btn-patient');
+    const btnAdmin = document.getElementById('portal-btn-admin');
+
+    // Remove old listeners by cloning
+    if (btnPatient) {
+      const newBtn = btnPatient.cloneNode(true);
+      btnPatient.parentNode.replaceChild(newBtn, btnPatient);
+      newBtn.addEventListener('click', () => enterPortal(ROLES.PATIENT));
+    }
+    if (btnAdmin) {
+      const newBtn = btnAdmin.cloneNode(true);
+      btnAdmin.parentNode.replaceChild(newBtn, btnAdmin);
+      newBtn.addEventListener('click', () => enterPortal(ROLES.ADMIN));
+    }
+  }
+
+  async function enterPortal(role) {
+    State.set('activeRole', role);
+
+    // If entering as patient, load patient data if exists
+    if (role === ROLES.PATIENT) {
+      const user = State.get('user');
+      if (user) {
+        const { data: patient } = await sb
+          .from('patients')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        State.set('patient', patient);
+      }
+    }
+
+    document.getElementById('portal-select-container')?.classList.add('hidden');
+    showApp();
+    Router.init(true); // force rebuild
+  }
+
   // ─── Setup Auth UI Events ───
   function setupAuthUI() {
     // Login form
@@ -541,8 +606,13 @@ const Auth = (() => {
         if (session) {
           await loadUserData(session.user);
           hideLoading();
-          showApp();
-          Router.init();
+          const prof = State.get('profile');
+          if (isAdminWithPortalChoice(prof) && !State.get('activeRole')) {
+            showPortalSelect();
+          } else {
+            showApp();
+            Router.init();
+          }
         } else {
           showAuthPanel('auth-login');
         }
@@ -645,7 +715,7 @@ const Auth = (() => {
     showAuthPanel('auth-login');
   }
 
-  return { init, logout, loadUserData, changePassword: showChangePasswordModal };
+  return { init, logout, loadUserData, changePassword: showChangePasswordModal, showPortalSelect, enterPortal };
 })();
 
 // ─── Boot ───

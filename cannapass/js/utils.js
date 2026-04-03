@@ -316,10 +316,12 @@ function hideLoading() {
 function showAuth() {
   document.getElementById('auth-container')?.classList.remove('hidden');
   document.getElementById('app-container')?.classList.add('hidden');
+  document.getElementById('portal-select-container')?.classList.add('hidden');
 }
 
 function showApp() {
   document.getElementById('auth-container')?.classList.add('hidden');
+  document.getElementById('portal-select-container')?.classList.add('hidden');
   document.getElementById('app-container')?.classList.remove('hidden');
 }
 
