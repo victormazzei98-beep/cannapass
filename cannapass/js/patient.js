@@ -587,36 +587,12 @@ const Patient = (() => {
       const userId = State.get('user')?.id;
       if (!userId) throw new Error('Sessão expirada. Faça login novamente.');
 
-      console.log('[Patient] Starting submission for user:', userId);
-      console.log('[Patient] uploadedFiles:', Object.keys(uploadedFiles));
-      console.log('[Patient] wizardData via:', wizardData.via_type);
-
-      // 1. Upload documents to Supabase Storage
-      const docUploads = [];
-      for (const [docType, file] of Object.entries(uploadedFiles)) {
-        console.log('[Patient] Uploading:', docType, file.name, file.size);
-        const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
-        const filePath = `${userId}/${docType}_${Date.now()}.${ext}`;
-        const { error: uploadError } = await sb.storage
-          .from(STORAGE_BUCKET)
-          .upload(filePath, file, { contentType: file.type, upsert: true });
-
-        if (uploadError) {
-          console.error('[Patient] Storage upload error:', uploadError);
-          throw new Error(`Erro ao enviar ${docType}: ${uploadError.message}`);
-        }
-
-        docUploads.push({ docType, filePath, fileName: file.name, fileSize: file.size, mimeType: file.type });
-      }
-
-      console.log('[Patient] All files uploaded. Saving patient record...');
-
-      // 2. Upsert patient record
+      // 1. Save patient record FIRST (most important)
       const patientData = {
         user_id: userId,
         full_name: wizardData.full_name,
-        cpf: wizardData.cpf,
-        date_of_birth: wizardData.birth_date,
+        cpf: wizardData.cpf.replace(/\D/g, ''),
+        date_of_birth: wizardData.birth_date || null,
         email: wizardData.email,
         phone: wizardData.phone,
         via: wizardData.via_type,
@@ -634,37 +610,51 @@ const Patient = (() => {
         patientData.court = wizardData.court;
       }
 
-      console.log('[Patient] Patient data:', JSON.stringify(patientData));
-
       const { data: patient, error: patientError } = await sb
         .from('patients')
         .upsert(patientData, { onConflict: 'user_id' })
         .select()
         .single();
 
-      if (patientError) {
-        console.error('[Patient] Upsert error:', patientError);
-        throw new Error(`Erro ao salvar cadastro: ${patientError.message}`);
-      }
+      if (patientError) throw new Error(`Erro ao salvar cadastro: ${patientError.message}`);
+      if (!patient) throw new Error('Erro ao salvar cadastro: nenhum dado retornado.');
 
-      console.log('[Patient] Patient saved:', patient.id, patient.registration_id);
+      // 2. Upload documents to Supabase Storage
+      const docUploads = [];
+      for (const [docType, file] of Object.entries(uploadedFiles)) {
+        try {
+          const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+          const filePath = `${userId}/${docType}_${Date.now()}.${ext}`;
+          const { error: uploadError } = await sb.storage
+            .from(STORAGE_BUCKET)
+            .upload(filePath, file, { contentType: file.type, upsert: true });
+
+          if (uploadError) {
+            console.error('[Patient] Storage upload error for', docType, ':', uploadError);
+            continue; // non-fatal, continue with other docs
+          }
+
+          docUploads.push({ docType, filePath, fileName: file.name, fileSize: file.size, mimeType: file.type });
+        } catch (uploadErr) {
+          console.error('[Patient] Upload exception for', docType, ':', uploadErr);
+        }
+      }
 
       // 3. Save document metadata
       for (const doc of docUploads) {
-        const { error: docError } = await sb.from('documents').upsert({
-          user_id: userId,
-          patient_id: patient.id,
-          doc_type: doc.docType,
-          file_path: doc.filePath,
-          file_name: doc.fileName,
-          file_size: doc.fileSize,
-          mime_type: doc.mimeType,
-          status: 'uploaded'
-        }, { onConflict: 'patient_id,doc_type', ignoreDuplicates: false });
-
-        if (docError) {
-          console.error('[Patient] Document metadata error:', docError);
-          // Non-fatal: patient record was saved
+        try {
+          await sb.from('documents').upsert({
+            user_id: userId,
+            patient_id: patient.id,
+            doc_type: doc.docType,
+            file_path: doc.filePath,
+            file_name: doc.fileName,
+            file_size: doc.fileSize,
+            mime_type: doc.mimeType,
+            status: 'uploaded'
+          }, { onConflict: 'patient_id,doc_type', ignoreDuplicates: false });
+        } catch (docErr) {
+          console.error('[Patient] Doc metadata error:', docErr);
         }
       }
 
