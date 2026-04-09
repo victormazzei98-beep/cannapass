@@ -5,15 +5,27 @@
 
 const Auth = (() => {
   let _isRecoveryFlow = false;
+  let _isPublicRoute = false;
+
+  function isPublicHash(hash) {
+    return hash.startsWith(PUBLIC_VERIFY_HASH) || hash === '#/verificar';
+  }
 
   // ─── Initialize Auth ───
   async function init() {
-    // Public verification route — bypass auth entirely
+    // Public verification routes — bypass auth entirely
     const hash = window.location.hash || '';
     if (hash.startsWith(PUBLIC_VERIFY_HASH)) {
+      _isPublicRoute = true;
       hideLoading();
       const token = hash.slice(PUBLIC_VERIFY_HASH.length);
       Router.showPublicVerification(token);
+      return;
+    }
+    if (hash === '#/verificar') {
+      _isPublicRoute = true;
+      hideLoading();
+      Router.showPublicVerificationSearch();
       return;
     }
 

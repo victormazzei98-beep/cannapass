@@ -21,7 +21,8 @@ const STATUS = Object.freeze({
   DRAFT: 'draft',
   PENDING: 'pending',
   APPROVED: 'approved',
-  REJECTED: 'rejected'
+  REJECTED: 'rejected',
+  RENEWAL_PENDING: 'renewal_pending'
 });
 
 // ─── Via Type (how patient obtains cannabis) ───

@@ -267,11 +267,12 @@ const Admin = (() => {
       }
 
       // ─── Status distribution ───
-      const [approvedRes, pendingRes, rejectedRes, expiredRes] = await Promise.all([
+      const [approvedRes, pendingRes, rejectedRes, expiredRes, renewalRes] = await Promise.all([
         sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
         sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
-        sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'expired')
+        sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'expired'),
+        sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'renewal_pending')
       ]);
 
       const statusCanvas = document.getElementById('chart-status');
@@ -279,15 +280,16 @@ const Admin = (() => {
         chartStatus = new Chart(statusCanvas, {
           type: 'doughnut',
           data: {
-            labels: ['Aprovado', 'Pendente', 'Rejeitado', 'Expirado'],
+            labels: ['Aprovado', 'Pendente', 'Rejeitado', 'Expirado', 'Renovacao'],
             datasets: [{
               data: [
                 approvedRes.count ?? 0,
                 pendingRes.count ?? 0,
                 rejectedRes.count ?? 0,
-                expiredRes.count ?? 0
+                expiredRes.count ?? 0,
+                renewalRes.count ?? 0
               ],
-              backgroundColor: ['#22c55e', '#eab308', '#ef4444', '#6b7280'],
+              backgroundColor: ['#22c55e', '#eab308', '#ef4444', '#6b7280', '#3b82f6'],
               borderWidth: 0
             }]
           },
@@ -681,6 +683,7 @@ const Admin = (() => {
             <select id="filter-status" class="form-select">
               <option value="">Todos os Status</option>
               <option value="pending">Pendente</option>
+              <option value="renewal_pending">Renovacao Pendente</option>
               <option value="approved">Aprovado</option>
               <option value="rejected">Rejeitado</option>
               <option value="expired">Expirado</option>
@@ -997,12 +1000,26 @@ const Admin = (() => {
               </div>
             `}
 
+            <!-- Renewal Diff (if renewal_pending) -->
+            ${p.status === 'renewal_pending' ? `
+              <div class="divider"></div>
+              <h4 class="mb-sm" style="color:var(--blue);">Alteracoes da Renovacao</h4>
+              <div id="renewal-diff-area">
+                <div class="flex-center"><div class="spinner spinner-sm"></div></div>
+              </div>
+              ${p.renewal_count > 0 ? `<p class="text-sm text-muted mt-xs">Renovacao #${(p.renewal_count || 0) + 1}</p>` : ''}
+            ` : ''}
+
             <!-- Actions -->
-            ${p.status === 'pending' ? `
+            ${p.status === 'pending' || p.status === 'renewal_pending' ? `
               <div class="divider"></div>
               <div class="detail-actions">
-                <button class="btn btn-success" id="approve-btn" data-id="${p.id}">Aprovar Cadastro</button>
-                <button class="btn btn-danger" id="reject-btn" data-id="${p.id}">Rejeitar Cadastro</button>
+                <button class="btn btn-success" id="approve-btn" data-id="${p.id}">
+                  ${p.status === 'renewal_pending' ? 'Aprovar Renovacao' : 'Aprovar Cadastro'}
+                </button>
+                <button class="btn btn-danger" id="reject-btn" data-id="${p.id}">
+                  ${p.status === 'renewal_pending' ? 'Rejeitar Renovacao' : 'Rejeitar Cadastro'}
+                </button>
               </div>
             ` : ''}
           </div>
@@ -1017,12 +1034,91 @@ const Admin = (() => {
       document.getElementById('approve-btn')?.addEventListener('click', () => approvePatient(patientId));
       document.getElementById('reject-btn')?.addEventListener('click', () => rejectPatient(patientId));
 
+      // Load renewal diff if applicable
+      if (p.status === 'renewal_pending') {
+        loadRenewalDiff(p.id);
+      }
+
       // Scroll to detail
       area.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch (err) {
       console.error('[Admin] Detail error:', err);
       area.innerHTML = '<div class="card mt-md"><div class="card-body"><p class="text-muted">Erro ao carregar detalhes.</p></div></div>';
+    }
+  }
+
+  // ─── Renewal Diff View ───
+  async function loadRenewalDiff(patientId) {
+    const diffArea = document.getElementById('renewal-diff-area');
+    if (!diffArea) return;
+
+    try {
+      const { data: renewal, error } = await sb.from('renewals')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !renewal) {
+        diffArea.innerHTML = '<p class="text-muted">Dados de renovacao nao encontrados.</p>';
+        return;
+      }
+
+      const fieldLabels = {
+        full_name: 'Nome',
+        email: 'Email',
+        phone: 'Telefone',
+        doctor_name: 'Medico',
+        doctor_crm: 'CRM',
+        prescription_validity: 'Validade Prescricao',
+        hc_number: 'HC Numero',
+        salvo_conduto: 'Salvo Conduto',
+        court: 'Vara/Tribunal'
+      };
+
+      const old = renewal.old_data || {};
+      const nw = renewal.new_data || {};
+      let changedCount = 0;
+
+      let html = '<div class="detail-grid">';
+      for (const [key, label] of Object.entries(fieldLabels)) {
+        const oldVal = old[key] || null;
+        const newVal = nw[key] || null;
+        if (!oldVal && !newVal) continue;
+
+        const changed = oldVal !== newVal;
+        if (changed) changedCount++;
+
+        const isDate = key.includes('validity');
+        const displayOld = isDate ? formatDate(oldVal) : sanitizeHTML(oldVal || '—');
+        const displayNew = isDate ? formatDate(newVal) : sanitizeHTML(newVal || '—');
+
+        html += `
+          <div class="detail-item" style="${changed ? 'border-left:3px solid var(--blue);padding-left:8px;' : ''}">
+            <label>${label}</label>
+            ${changed ? `
+              <span><del style="color:var(--red);opacity:0.7;">${displayOld}</del> &rarr; <strong style="color:var(--green);">${displayNew}</strong></span>
+            ` : `
+              <span>${displayNew}</span>
+            `}
+          </div>
+        `;
+      }
+      html += '</div>';
+
+      if (changedCount === 0) {
+        html = '<p class="text-muted">Nenhuma alteracao detectada nos dados.</p>';
+      } else {
+        html = `<p class="text-sm mb-sm" style="color:var(--blue);"><strong>${changedCount} campo(s) alterado(s)</strong></p>` + html;
+      }
+
+      diffArea.innerHTML = html;
+    } catch (err) {
+      console.error('[Admin] Renewal diff error:', err);
+      diffArea.innerHTML = '<p class="text-muted">Erro ao carregar dados de renovacao.</p>';
     }
   }
 
@@ -1046,9 +1142,15 @@ const Admin = (() => {
   }
 
   async function approvePatient(patientId) {
+    // Fetch patient to detect renewal
+    const { data: patient } = await sb.from('patients').select('full_name, email, status, renewal_count').eq('id', patientId).single();
+    const isRenewal = patient?.status === 'renewal_pending';
+
     const confirmed = await Modal.open({
-      title: 'Aprovar Cadastro',
-      body: 'Confirma a aprovação deste cadastro? O paciente poderá gerar QR Codes.',
+      title: isRenewal ? 'Aprovar Renovacao' : 'Aprovar Cadastro',
+      body: isRenewal
+        ? 'Confirma a aprovacao desta renovacao? Os dados atualizados serao efetivados.'
+        : 'Confirma a aprovacao deste cadastro? O paciente podera gerar QR Codes.',
       confirmText: 'Aprovar',
       cancelText: 'Cancelar'
     });
@@ -1056,41 +1158,58 @@ const Admin = (() => {
     if (!confirmed) return;
 
     try {
-      // Fetch patient data for email
-      const { data: patient } = await sb.from('patients').select('full_name, email').eq('id', patientId).single();
-
       const adminId = State.get('user')?.id;
-      const { error } = await sb.from('patients').update({
+      const updateData = {
         status: 'approved',
         validated_at: new Date().toISOString(),
         validated_by: adminId
-      }).eq('id', patientId);
+      };
 
+      if (isRenewal) {
+        updateData.renewal_approved_at = new Date().toISOString();
+        updateData.renewal_approved_by = adminId;
+        updateData.renewal_count = (patient.renewal_count || 0) + 1;
+
+        // Mark renewal audit record as approved (non-blocking)
+        sb.from('renewals')
+          .update({ status: 'approved', reviewed_by: adminId, reviewed_at: new Date().toISOString() })
+          .eq('patient_id', patientId)
+          .eq('status', 'pending')
+          .then(() => {})
+          .catch(err => console.warn('[Admin] Renewal audit update:', err));
+      }
+
+      const { error } = await sb.from('patients').update(updateData).eq('id', patientId);
       if (error) throw error;
 
-      Toast.success('Cadastro aprovado com sucesso!');
+      Toast.success(isRenewal ? 'Renovacao aprovada com sucesso!' : 'Cadastro aprovado com sucesso!');
       document.getElementById('cadastro-detail-area').innerHTML = '';
       loadCadastros();
 
       // Send email notification (non-blocking)
       if (patient?.email) {
-        sendNotification('approved', patient.email, patient.full_name);
+        sendNotification(isRenewal ? 'renewal_approved' : 'approved', patient.email, patient.full_name);
       }
     } catch (err) {
       console.error('[Admin] Approve error:', err);
-      Toast.error('Erro ao aprovar cadastro.');
+      Toast.error(isRenewal ? 'Erro ao aprovar renovacao.' : 'Erro ao aprovar cadastro.');
     }
   }
 
   async function rejectPatient(patientId) {
     const area = document.getElementById('cadastro-detail-area');
-    // Show rejection modal with textarea
+
+    // Fetch patient to detect renewal
+    const { data: patient } = await sb.from('patients').select('full_name, email, status').eq('id', patientId).single();
+    const isRenewal = patient?.status === 'renewal_pending';
+
     const confirmed = await Modal.open({
-      title: 'Rejeitar Cadastro',
+      title: isRenewal ? 'Rejeitar Renovacao' : 'Rejeitar Cadastro',
       body: `
-        <p>Informe o motivo da rejeição:</p>
+        <p>Informe o motivo da rejeicao:</p>
         <textarea id="rejection-reason-input" class="form-input" rows="4"
-          placeholder="Descreva o motivo da rejeição..." style="margin-top:8px;width:100%;resize:vertical;"></textarea>
+          placeholder="Descreva o motivo da rejeicao..." style="margin-top:8px;width:100%;resize:vertical;"></textarea>
+        ${isRenewal ? '<p class="text-sm text-muted mt-sm">O cadastro do paciente voltara ao status <strong>Aprovado</strong> com os dados anteriores.</p>' : ''}
       `,
       confirmText: 'Rejeitar',
       cancelText: 'Cancelar',
@@ -1101,35 +1220,83 @@ const Admin = (() => {
 
     const reason = document.getElementById('rejection-reason-input')?.value?.trim();
     if (!reason) {
-      Toast.warning('O motivo da rejeição é obrigatório.');
+      Toast.warning('O motivo da rejeicao e obrigatorio.');
       return;
     }
 
     try {
-      // Fetch patient data for email
-      const { data: patient } = await sb.from('patients').select('full_name, email').eq('id', patientId).single();
-
       const adminId = State.get('user')?.id;
-      const { error } = await sb.from('patients').update({
-        status: 'rejected',
-        validated_at: new Date().toISOString(),
-        validated_by: adminId,
-        rejection_reason: reason
-      }).eq('id', patientId);
 
-      if (error) throw error;
+      if (isRenewal) {
+        // For renewal rejection: restore to approved + revert data from snapshot
+        const { data: renewal } = await sb.from('renewals')
+          .select('old_data')
+          .eq('patient_id', patientId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-      Toast.success('Cadastro rejeitado.');
+        // Build restore data — revert to old values
+        const restoreData = {
+          status: 'approved',
+          validated_at: new Date().toISOString(),
+          validated_by: adminId,
+          rejection_reason: reason,
+          renewal_requested_at: null
+        };
+
+        // Restore old field values from snapshot
+        if (renewal?.old_data) {
+          const old = renewal.old_data;
+          if (old.doctor_name !== undefined) restoreData.doctor_name = old.doctor_name;
+          if (old.doctor_crm !== undefined) restoreData.doctor_crm = old.doctor_crm;
+          if (old.prescription_validity !== undefined) restoreData.prescription_validity = old.prescription_validity;
+          if (old.hc_number !== undefined) restoreData.hc_number = old.hc_number;
+          if (old.salvo_conduto !== undefined) restoreData.salvo_conduto = old.salvo_conduto;
+          if (old.court !== undefined) restoreData.court = old.court;
+        }
+
+        const { error } = await sb.from('patients').update(restoreData).eq('id', patientId);
+        if (error) throw error;
+
+        // Mark renewal audit record as rejected (non-blocking)
+        sb.from('renewals')
+          .update({ status: 'rejected', rejection_reason: reason, reviewed_by: adminId, reviewed_at: new Date().toISOString() })
+          .eq('patient_id', patientId)
+          .eq('status', 'pending')
+          .then(() => {})
+          .catch(err => console.warn('[Admin] Renewal audit reject:', err));
+
+        Toast.success('Renovacao rejeitada. Cadastro restaurado ao status anterior.');
+      } else {
+        // Normal rejection
+        const { error } = await sb.from('patients').update({
+          status: 'rejected',
+          validated_at: new Date().toISOString(),
+          validated_by: adminId,
+          rejection_reason: reason
+        }).eq('id', patientId);
+
+        if (error) throw error;
+        Toast.success('Cadastro rejeitado.');
+      }
+
       if (area) area.innerHTML = '';
       loadCadastros();
 
       // Send email notification (non-blocking)
       if (patient?.email) {
-        sendNotification('rejected', patient.email, patient.full_name, reason);
+        sendNotification(
+          isRenewal ? 'renewal_rejected' : 'rejected',
+          patient.email,
+          patient.full_name,
+          reason
+        );
       }
     } catch (err) {
       console.error('[Admin] Reject error:', err);
-      Toast.error('Erro ao rejeitar cadastro.');
+      Toast.error(isRenewal ? 'Erro ao rejeitar renovacao.' : 'Erro ao rejeitar cadastro.');
     }
   }
 

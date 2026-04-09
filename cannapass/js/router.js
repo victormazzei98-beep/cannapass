@@ -15,7 +15,8 @@ const Router = (() => {
       { id: 'documentos', icon: Icons.documentos, label: 'Documentos', section: 'Principal' },
       { id: 'viagem', icon: Icons.viagem, label: 'Viagem', section: 'QR Code' },
       { id: 'qrcode', icon: Icons.qrcode, label: 'Meu QR Code', section: 'QR Code' },
-      { id: 'historico', icon: Icons.historico, label: 'Histórico', section: 'QR Code' }
+      { id: 'historico', icon: Icons.historico, label: 'Histórico', section: 'QR Code' },
+      { id: 'perfil', icon: Icons.perfil, label: 'Meu Perfil', section: 'Conta' }
     ],
     [ROLES.AGENT]: [
       { id: 'scanner', icon: Icons.scanner, label: 'Scanner', section: 'Verificação' },
@@ -41,6 +42,7 @@ const Router = (() => {
     'viagem': 'Registrar Viagem',
     'qrcode': 'Meu QR Code',
     'historico': 'Histórico',
+    'perfil': 'Meu Perfil',
     'scanner': 'Scanner QR',
     'busca': 'Busca Manual',
     'historico-agent': 'Histórico de Verificações',
@@ -96,6 +98,12 @@ const Router = (() => {
     if (hash.startsWith(PUBLIC_VERIFY_HASH)) {
       const token = hash.slice(PUBLIC_VERIFY_HASH.length);
       showPublicVerification(token);
+      return;
+    }
+
+    // Public verification search page: #/verificar
+    if (hash === '#/verificar') {
+      showPublicVerificationSearch();
       return;
     }
 
@@ -581,5 +589,130 @@ const Router = (() => {
     doc.save(fileName);
   }
 
-  return { init, navigate, showPublicVerification };
+  // ─── Public Verification Search Page ───
+  function showPublicVerificationSearch() {
+    document.getElementById('auth-container')?.classList.add('hidden');
+    document.getElementById('app-container')?.classList.add('hidden');
+    document.getElementById('loading-screen')?.classList.add('hidden');
+
+    const publicContainer = document.getElementById('public-container');
+    const publicDiv = document.getElementById('public-verification');
+    if (!publicContainer || !publicDiv) return;
+
+    publicContainer.classList.remove('hidden');
+
+    publicDiv.innerHTML = `
+      <div class="public-verification-card card" style="max-width:520px;margin:40px auto;">
+        <div class="card-body">
+          <!-- Header -->
+          <div class="text-center mb-lg">
+            <div style="color: var(--green); margin-bottom: 8px;">${Icons.leaf}</div>
+            <h3 style="color: var(--green);">Cannapass</h3>
+            <p class="text-sm text-muted mt-sm">Verificação Pública de Autorização</p>
+          </div>
+
+          <div style="padding:12px 16px;border-radius:8px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);margin-bottom:20px;">
+            <p class="text-sm" style="margin:0;">
+              ${Icons.shield} Esta página permite que qualquer autoridade verifique a validade de uma autorização de transporte de cannabis medicinal.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="public-token-input">Token do QR Code</label>
+            <input class="form-input" type="text" id="public-token-input"
+              placeholder="Cole ou digite o token do QR Code aqui"
+              style="font-size:15px;padding:12px 14px;"
+              autocomplete="off" spellcheck="false">
+            <span class="form-hint">O token está impresso abaixo do QR Code ou na URL do link.</span>
+          </div>
+
+          <button class="btn btn-primary btn-block mt-md" id="public-verify-btn">
+            ${Icons.verificar || Icons.shield} Verificar Autorização
+          </button>
+
+          <div id="public-search-result" class="mt-lg"></div>
+
+          <div class="text-center mt-lg">
+            <p class="text-xs text-muted">
+              Sistema Cannapass — ANVISA RDC nº 327/2019<br>
+              Verificação segura e em tempo real
+            </p>
+            <a href="#" class="text-xs" style="color:var(--green);" onclick="window.location.hash='';window.location.reload();">Ir para o login</a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Bind events
+    const input = document.getElementById('public-token-input');
+    const btn = document.getElementById('public-verify-btn');
+
+    btn?.addEventListener('click', () => {
+      const token = extractPublicToken(input?.value?.trim());
+      if (!token) {
+        Toast.warning('Informe o token do QR Code.');
+        return;
+      }
+      performPublicSearch(token);
+    });
+
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btn?.click();
+    });
+
+    // Auto-focus
+    input?.focus();
+  }
+
+  function extractPublicToken(input) {
+    if (!input) return null;
+    // Handle full URL: https://cannapass.vercel.app/#/v/TOKEN
+    const hashMatch = input.match(/#\/v\/(.+)/);
+    if (hashMatch) return hashMatch[1];
+    // Handle path: /v/TOKEN
+    const pathMatch = input.match(/\/v\/(.+)/);
+    if (pathMatch) return pathMatch[1];
+    // Otherwise treat as raw token
+    return input;
+  }
+
+  async function performPublicSearch(token) {
+    const resultArea = document.getElementById('public-search-result');
+    if (!resultArea) return;
+
+    resultArea.innerHTML = `
+      <div class="text-center">
+        <div class="spinner" style="margin:0 auto 12px;"></div>
+        <p class="text-muted">Verificando...</p>
+      </div>
+    `;
+
+    try {
+      const { data, error } = await sb.rpc('verify_qr_token', { lookup_token: token });
+
+      if (error) throw error;
+
+      if (!data || data.error || data.valid === false) {
+        renderPublicResult(resultArea, null);
+        return;
+      }
+
+      renderPublicResult(resultArea, data);
+    } catch (err) {
+      console.error('[Router] Public search error:', err);
+      resultArea.innerHTML = `
+        <div class="verification-result" style="margin-top:16px;">
+          <div class="verification-status">
+            <span class="verification-status-icon">${Icons.error}</span>
+            <div class="verification-status-text">
+              <h4>Erro na Verificação</h4>
+              <p class="text-sm text-muted">Não foi possível verificar. Verifique sua conexão e tente novamente.</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  return { init, navigate, showPublicVerification, showPublicVerificationSearch };
 })();

@@ -209,6 +209,20 @@ function isFutureDate(dateStr) {
   return dayjs(dateStr).isAfter(dayjs(), 'day');
 }
 
+// ─── Check if date is expired ───
+function isExpired(dateStr) {
+  if (!dateStr) return false;
+  return dayjs(dateStr).isBefore(dayjs(), 'day');
+}
+
+// ─── Check if date expires within N days ───
+function isExpiringSoon(dateStr, daysThreshold = 30) {
+  if (!dateStr) return false;
+  const expiryDate = dayjs(dateStr);
+  const now = dayjs();
+  return expiryDate.isAfter(now) && expiryDate.diff(now, 'day') <= daysThreshold;
+}
+
 // ─── HTML Sanitization ───
 function sanitizeHTML(str) {
   const div = document.createElement('div');
@@ -359,7 +373,8 @@ function getStatusLabel(status) {
     [STATUS.DRAFT]: 'Rascunho',
     [STATUS.PENDING]: 'Pendente',
     [STATUS.APPROVED]: 'Aprovado',
-    [STATUS.REJECTED]: 'Rejeitado'
+    [STATUS.REJECTED]: 'Rejeitado',
+    [STATUS.RENEWAL_PENDING]: 'Renovacao Pendente'
   };
   return labels[status] || status;
 }
@@ -370,7 +385,8 @@ function getStatusBadgeType(status) {
     [STATUS.DRAFT]: 'neutral',
     [STATUS.PENDING]: 'warning',
     [STATUS.APPROVED]: 'success',
-    [STATUS.REJECTED]: 'danger'
+    [STATUS.REJECTED]: 'danger',
+    [STATUS.RENEWAL_PENDING]: 'info'
   };
   return types[status] || 'neutral';
 }

@@ -17,6 +17,7 @@ const Patient = (() => {
     documents: {}
   };
   let uploadedFiles = {};
+  let isRenewalMode = false;
 
   function render(page, container) {
     switch (page) {
@@ -26,6 +27,7 @@ const Patient = (() => {
       case 'viagem': renderViagem(container); break;
       case 'qrcode': renderQRCode(container); break;
       case 'historico': renderHistorico(container); break;
+      case 'perfil': renderPerfil(container); break;
       default: renderDashboard(container);
     }
   }
@@ -99,12 +101,46 @@ const Patient = (() => {
                 <h4>Cadastro em Análise</h4>
                 <p>Seu cadastro está sendo analisado pela equipe Cannapass. Você será notificado quando for aprovado.</p>
               </div>
+            ` : status === STATUS.RENEWAL_PENDING ? `
+              <div class="empty-state">
+                <div class="empty-state-icon">${Icons['empty-clock']}</div>
+                <h4>Renovacao em Analise</h4>
+                <p>Sua renovacao esta sendo analisada pela equipe Cannapass. Voce sera notificado quando for aprovada.</p>
+              </div>
             ` : status === STATUS.APPROVED ? `
               <div class="empty-state">
                 <div class="empty-state-icon">${Icons['empty-check']}</div>
                 <h4>Cadastro Aprovado!</h4>
-                <p>Registre uma viagem para gerar seu QR Code.</p>
-                <button class="btn btn-primary mt-md" onclick="Router.navigate('viagem')">Registrar Viagem</button>
+                ${(() => {
+                  const validity = patient?.via === 'pharmacy' ? patient?.prescription_validity : null;
+                  if (validity && isExpired(validity)) {
+                    return `
+                      <div style="margin:12px 0;padding:12px 16px;border-radius:8px;background:rgba(224,85,85,0.12);border:1px solid rgba(224,85,85,0.3);">
+                        <strong style="color:var(--red);">Prescricao expirada em ${formatDate(validity)}</strong>
+                        <p style="margin-top:4px;font-size:13px;">Renove seu cadastro para manter seu QR Code ativo.</p>
+                      </div>
+                      <button class="btn btn-primary mt-md" onclick="Patient._startRenewal()">Renovar Cadastro</button>
+                    `;
+                  } else if (validity && isExpiringSoon(validity)) {
+                    return `
+                      <div style="margin:12px 0;padding:12px 16px;border-radius:8px;background:rgba(240,192,96,0.12);border:1px solid rgba(240,192,96,0.3);">
+                        <strong style="color:var(--yellow);">Prescricao expira em ${formatDate(validity)}</strong>
+                        <p style="margin-top:4px;font-size:13px;">Renove seu cadastro antes do vencimento.</p>
+                      </div>
+                      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="Patient._startRenewal()">Renovar Cadastro</button>
+                        <button class="btn btn-secondary" onclick="Router.navigate('viagem')">Registrar Viagem</button>
+                      </div>
+                    `;
+                  } else {
+                    return `
+                      <p>Registre uma viagem para gerar seu QR Code.</p>
+                      <button class="btn btn-primary mt-md" onclick="Router.navigate('viagem')">Registrar Viagem</button>
+                      ${patient?.renewal_count > 0 ? '' : ''}
+                      <button class="btn btn-secondary mt-sm" onclick="Patient._startRenewal()" style="margin-left:8px;">Renovar Cadastro</button>
+                    `;
+                  }
+                })()}
               </div>
             ` : `
               <div class="empty-state">
@@ -140,6 +176,48 @@ const Patient = (() => {
   // ═══════════════════════════════════════
   function renderCadastro(container) {
     const patient = State.get('patient');
+
+    // Block access for approved patients who aren't in renewal mode
+    if (patient && patient.status === STATUS.APPROVED && !isRenewalMode) {
+      container.innerHTML = `
+        <div class="page-header">
+          <h2>Cadastro</h2>
+          <p>Seu cadastro ja esta aprovado.</p>
+        </div>
+        <div class="card"><div class="card-body">
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['empty-check']}</div>
+            <h4>Cadastro Aprovado</h4>
+            <p>Para atualizar documentos ou dados, use a opcao de Renovacao no Dashboard.</p>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center;">
+              <button class="btn btn-primary" onclick="Patient._startRenewal()">Renovar Cadastro</button>
+              <button class="btn btn-secondary" onclick="Router.navigate('dashboard')">Voltar ao Dashboard</button>
+            </div>
+          </div>
+        </div></div>
+      `;
+      return;
+    }
+
+    // Block if renewal already pending
+    if (patient && patient.status === STATUS.RENEWAL_PENDING) {
+      container.innerHTML = `
+        <div class="page-header">
+          <h2>Cadastro</h2>
+          <p>Renovacao em analise</p>
+        </div>
+        <div class="card"><div class="card-body">
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['empty-clock']}</div>
+            <h4>Renovacao Pendente</h4>
+            <p>Voce ja possui uma renovacao em analise. Aguarde a aprovacao antes de enviar outra.</p>
+            <button class="btn btn-secondary mt-md" onclick="Router.navigate('dashboard')">Voltar ao Dashboard</button>
+          </div>
+        </div></div>
+      `;
+      return;
+    }
+
     // Pre-fill wizard data from existing patient record
     if (patient) {
       wizardData = {
@@ -167,8 +245,8 @@ const Patient = (() => {
 
     container.innerHTML = `
       <div class="page-header">
-        <h2>Cadastro</h2>
-        <p>Preencha seus dados para obter seu QR Code</p>
+        <h2>${isRenewalMode ? 'Renovacao de Cadastro' : 'Cadastro'}</h2>
+        <p>${isRenewalMode ? 'Atualize os dados que mudaram. Campos inalterados serao mantidos.' : 'Preencha seus dados para obter seu QR Code'}</p>
       </div>
 
       <!-- Stepper -->
@@ -219,7 +297,7 @@ const Patient = (() => {
     // Button visibility
     if (prevBtn) prevBtn.style.visibility = wizardStep === 1 ? 'hidden' : 'visible';
     if (nextBtn) {
-      nextBtn.textContent = wizardStep === 4 ? 'Enviar Cadastro' : 'Próximo';
+      nextBtn.textContent = wizardStep === 4 ? (isRenewalMode ? 'Enviar Renovacao' : 'Enviar Cadastro') : 'Próximo';
       nextBtn.className = wizardStep === 4 ? 'btn btn-primary btn-lg' : 'btn btn-primary';
     }
 
@@ -235,6 +313,9 @@ const Patient = (() => {
   function renderStep1(container) {
     container.innerHTML = `
       <h3 class="mb-md">Dados Pessoais</h3>
+      ${isRenewalMode ? `<div style="padding:10px 14px;border-radius:8px;background:rgba(100,180,255,0.1);border:1px solid rgba(100,180,255,0.25);margin-bottom:16px;font-size:13px;">
+        <strong>Renovacao:</strong> Seus dados pessoais estao pre-preenchidos. Altere apenas se necessario.
+      </div>` : ''}
       <div class="form-stack">
         <div class="form-group">
           <label class="form-label" for="w-name">Nome completo *</label>
@@ -375,7 +456,13 @@ const Patient = (() => {
 
     container.innerHTML = `
       <h3 class="mb-md">Documentos</h3>
-      <p class="text-muted mb-lg">Envie os documentos necessários (PDF, JPG ou PNG, máx. 10MB)</p>
+      ${isRenewalMode ? `
+        <p class="text-muted mb-sm">Envie novos documentos apenas se necessario. Documentos anteriores serao mantidos.</p>
+        <div style="padding:10px 14px;border-radius:8px;background:rgba(100,180,255,0.1);border:1px solid rgba(100,180,255,0.25);margin-bottom:16px;font-size:13px;">
+          <strong>Renovacao:</strong> ${isPharmacy ? 'Recomendamos enviar a nova prescricao medica atualizada.' : 'Envie a nova decisao judicial caso tenha sido atualizada.'}
+          Documentos de identidade so precisam ser reenviados se mudaram.
+        </div>
+      ` : `<p class="text-muted mb-lg">Envie os documentos necessários (PDF, JPG ou PNG, máx. 10MB)</p>`}
 
       <!-- Identity Document -->
       <div class="form-group mb-lg">
@@ -449,8 +536,8 @@ const Patient = (() => {
   // ─── Step 4: Review ───
   function renderStep5(container) {
     container.innerHTML = `
-      <h3 class="mb-lg">Revisão do Cadastro</h3>
-      <p class="text-muted mb-lg">Confira seus dados antes de enviar. Após o envio, sua documentação será analisada pela equipe Cannapass.</p>
+      <h3 class="mb-lg">${isRenewalMode ? 'Revisao da Renovacao' : 'Revisão do Cadastro'}</h3>
+      <p class="text-muted mb-lg">${isRenewalMode ? 'Confira os dados atualizados antes de enviar a renovacao.' : 'Confira seus dados antes de enviar. Após o envio, sua documentação será analisada pela equipe Cannapass.'}</p>
 
       <div class="review-section">
         <h4>Dados Pessoais</h4>
@@ -478,14 +565,14 @@ const Patient = (() => {
         <h4>Documentos</h4>
         <div class="review-row">
           <span class="review-row-label">Identidade</span>
-          <span class="review-row-value">${uploadedFiles[DOC_TYPES.IDENTITY] ? '✓ ' + sanitizeHTML(uploadedFiles[DOC_TYPES.IDENTITY].name) : '✕ Não enviado'}</span>
+          <span class="review-row-value">${uploadedFiles[DOC_TYPES.IDENTITY] ? '✓ ' + sanitizeHTML(uploadedFiles[DOC_TYPES.IDENTITY].name) : (isRenewalMode ? '— Mantendo documento anterior' : '✕ Não enviado')}</span>
         </div>
         <div class="review-row">
           <span class="review-row-label">${wizardData.via_type === VIA.PHARMACY ? 'Prescrição' : 'Decisão Judicial'}</span>
           <span class="review-row-value">${
             uploadedFiles[wizardData.via_type === VIA.PHARMACY ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL]
               ? '✓ ' + sanitizeHTML(uploadedFiles[wizardData.via_type === VIA.PHARMACY ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL].name)
-              : '✕ Não enviado'
+              : (isRenewalMode ? '— Mantendo documento anterior' : '✕ Não enviado')
           }</span>
         </div>
       </div>
@@ -541,6 +628,8 @@ const Patient = (() => {
         }
         return true;
       case 3: {
+        // In renewal mode, documents are optional (existing ones are kept)
+        if (isRenewalMode) return true;
         const mainDocType = wizardData.via_type === VIA.PHARMACY ? DOC_TYPES.PRESCRIPTION : DOC_TYPES.JUDICIAL;
         if (!uploadedFiles[DOC_TYPES.IDENTITY]) { Toast.error('Envie seu documento de identidade.'); return false; }
         if (!uploadedFiles[mainDocType]) {
@@ -585,9 +674,11 @@ const Patient = (() => {
 
     try {
       const userId = State.get('user')?.id;
-      if (!userId) throw new Error('Sessão expirada. Faça login novamente.');
+      if (!userId) throw new Error('Sessao expirada. Faca login novamente.');
 
-      // 1. Save patient record FIRST (most important)
+      const oldPatient = State.get('patient');
+
+      // 1. Build patient data
       const patientData = {
         user_id: userId,
         full_name: wizardData.full_name,
@@ -596,7 +687,6 @@ const Patient = (() => {
         email: wizardData.email,
         phone: wizardData.phone,
         via: wizardData.via_type,
-        status: STATUS.PENDING
       };
 
       // Add via-specific fields
@@ -610,6 +700,16 @@ const Patient = (() => {
         patientData.court = wizardData.court;
       }
 
+      // 2. Set correct status
+      if (isRenewalMode) {
+        patientData.status = STATUS.RENEWAL_PENDING;
+        patientData.renewal_requested_at = new Date().toISOString();
+        patientData.previous_prescription_validity = oldPatient?.prescription_validity || null;
+      } else {
+        patientData.status = STATUS.PENDING;
+      }
+
+      // 3. Save patient record
       const { data: patient, error: patientError } = await sb
         .from('patients')
         .upsert(patientData, { onConflict: 'user_id' })
@@ -619,7 +719,30 @@ const Patient = (() => {
       if (patientError) throw new Error(`Erro ao salvar cadastro: ${patientError.message}`);
       if (!patient) throw new Error('Erro ao salvar cadastro: nenhum dado retornado.');
 
-      // 2. Upload documents to Supabase Storage
+      // 4. If renewal, save audit record
+      if (isRenewalMode && oldPatient) {
+        try {
+          const snapshotFields = ['doctor_name', 'doctor_crm', 'prescription_validity', 'hc_number', 'salvo_conduto', 'court', 'full_name', 'email', 'phone'];
+          const oldData = {};
+          const newData = {};
+          for (const f of snapshotFields) {
+            oldData[f] = oldPatient[f] || null;
+            newData[f] = patient[f] || null;
+          }
+
+          await sb.from('renewals').insert({
+            patient_id: patient.id,
+            user_id: userId,
+            old_data: oldData,
+            new_data: newData,
+            status: 'pending'
+          });
+        } catch (auditErr) {
+          console.error('[Patient] Renewal audit error (non-blocking):', auditErr);
+        }
+      }
+
+      // 5. Upload documents to Supabase Storage (if any new files)
       const docUploads = [];
       for (const [docType, file] of Object.entries(uploadedFiles)) {
         try {
@@ -631,7 +754,7 @@ const Patient = (() => {
 
           if (uploadError) {
             console.error('[Patient] Storage upload error for', docType, ':', uploadError);
-            continue; // non-fatal, continue with other docs
+            continue;
           }
 
           docUploads.push({ docType, filePath, fileName: file.name, fileSize: file.size, mimeType: file.type });
@@ -640,7 +763,7 @@ const Patient = (() => {
         }
       }
 
-      // 3. Save document metadata
+      // 6. Save document metadata
       for (const doc of docUploads) {
         try {
           await sb.from('documents').upsert({
@@ -658,12 +781,17 @@ const Patient = (() => {
         }
       }
 
-      // 4. Update state
+      // 7. Update state & navigate
       State.set('patient', patient);
       uploadedFiles = {};
       wizardStep = 1;
 
-      Toast.success('Cadastro enviado com sucesso! Aguarde a análise.');
+      if (isRenewalMode) {
+        isRenewalMode = false;
+        Toast.success('Renovacao enviada com sucesso! Aguarde a analise.');
+      } else {
+        Toast.success('Cadastro enviado com sucesso! Aguarde a analise.');
+      }
       Router.navigate('dashboard');
 
     } catch (err) {
@@ -919,7 +1047,7 @@ const Patient = (() => {
   function renderViagem(container) {
     const patient = State.get('patient');
 
-    if (!patient || patient.status !== STATUS.APPROVED) {
+    if (!patient || (patient.status !== STATUS.APPROVED && patient.status !== STATUS.RENEWAL_PENDING)) {
       container.innerHTML = `
         <div class="page-header">
           <h2>Registrar Viagem</h2>
@@ -929,9 +1057,29 @@ const Patient = (() => {
           <div class="card-body">
             <div class="empty-state">
               <div class="empty-state-icon">${Icons.warning}</div>
-              <h4>Cadastro não aprovado</h4>
+              <h4>Cadastro nao aprovado</h4>
               <p>Seu cadastro precisa estar aprovado para registrar uma viagem.</p>
               <button class="btn btn-primary mt-md" onclick="Router.navigate('dashboard')">Ver Dashboard</button>
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (patient.status === STATUS.RENEWAL_PENDING) {
+      container.innerHTML = `
+        <div class="page-header">
+          <h2>Registrar Viagem</h2>
+          <p>Informe os dados da sua viagem para gerar o QR Code</p>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="empty-state">
+              <div class="empty-state-icon">${Icons['empty-clock']}</div>
+              <h4>Renovacao em Analise</h4>
+              <p>Novas viagens estao bloqueadas enquanto sua renovacao esta sendo analisada. QR Codes existentes continuam validos.</p>
+              <button class="btn btn-secondary mt-md" onclick="Router.navigate('dashboard')">Ver Dashboard</button>
             </div>
           </div>
         </div>
@@ -1273,6 +1421,234 @@ const Patient = (() => {
     `;
   }
 
+  // ═══════════════════════════════════════
+  //  PERFIL — Editable Profile
+  // ═══════════════════════════════════════
+  function renderPerfil(container) {
+    const profile = State.get('profile');
+    const patient = State.get('patient');
+    const user = State.get('user');
+
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>Meu Perfil</h2>
+        <p>Atualize seus dados de contato e foto sem refazer o cadastro</p>
+      </div>
+
+      <div class="cards-grid">
+        <!-- Photo Card -->
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">${Icons.camera || ''} Foto de Perfil</h3></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+              <div id="perfil-avatar" style="width:100px;height:100px;border-radius:50%;background:var(--surface-hover);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:var(--green);border:3px solid var(--green);overflow:hidden;">
+                ${profile?.avatar_url
+                  ? `<img src="${sanitizeHTML(profile.avatar_url)}" style="width:100%;height:100%;object-fit:cover;" alt="Foto">`
+                  : getInitials(profile?.full_name)}
+              </div>
+              <div style="text-align:center;">
+                <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+                  ${Icons.upload} Alterar Foto
+                  <input type="file" id="perfil-photo-input" accept="image/jpeg,image/png" style="display:none;">
+                </label>
+                <p class="text-xs text-muted mt-sm">JPG ou PNG, máx. 2MB</p>
+              </div>
+              <div id="perfil-photo-status"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Info Card -->
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">${Icons.mail || ''} Dados de Contato</h3></div>
+          <div class="card-body">
+            <div class="form-stack">
+              <div class="form-group">
+                <label class="form-label" for="perfil-name">Nome Completo</label>
+                <input class="form-input" type="text" id="perfil-name" value="${sanitizeHTML(profile?.full_name || '')}" disabled>
+                <span class="form-hint">Para alterar o nome, utilize a Renovação de Cadastro.</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="perfil-email">E-mail</label>
+                <input class="form-input" type="email" id="perfil-email" value="${sanitizeHTML(profile?.email || user?.email || '')}">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="perfil-phone">Telefone</label>
+                <input class="form-input" type="text" id="perfil-phone" value="${maskPhone(patient?.phone || profile?.phone || '')}" placeholder="(00) 00000-0000" maxlength="15">
+              </div>
+              <button class="btn btn-primary" id="perfil-save-btn">${Icons.check} Salvar Alterações</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Card -->
+      <div class="card mt-md">
+        <div class="card-header"><h3 class="card-title">${Icons.lock} Segurança</h3></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong>Senha da conta</strong>
+              <p class="text-sm text-muted">Altere sua senha de acesso ao Cannapass</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="perfil-change-pw-btn">${Icons.lock} Alterar Senha</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Phone mask
+    const phoneInput = document.getElementById('perfil-phone');
+    phoneInput?.addEventListener('input', (e) => {
+      e.target.value = maskPhone(e.target.value);
+    });
+
+    // Photo upload handler
+    const photoInput = document.getElementById('perfil-photo-input');
+    photoInput?.addEventListener('change', () => handleProfilePhotoUpload(photoInput));
+
+    // Save contact info
+    document.getElementById('perfil-save-btn')?.addEventListener('click', saveProfileContact);
+
+    // Change password
+    document.getElementById('perfil-change-pw-btn')?.addEventListener('click', () => {
+      if (typeof Auth !== 'undefined' && Auth.showChangePasswordModal) {
+        Auth.showChangePasswordModal();
+      } else {
+        Auth.changePassword();
+      }
+    });
+  }
+
+  async function handleProfilePhotoUpload(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('perfil-photo-status');
+
+    // Validate: image only, max 2MB
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      Toast.error('Formato inválido. Use JPG ou PNG.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      Toast.error('A foto deve ter no máximo 2MB.');
+      return;
+    }
+
+    const userId = State.get('user')?.id;
+    if (!userId) return;
+
+    if (statusEl) statusEl.innerHTML = '<p class="text-muted text-sm">Enviando foto...</p>';
+
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const filePath = `${userId}/profile_photo.${ext}`;
+
+      // Upload (upsert: true to replace existing)
+      const { error: uploadError } = await sb.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+      const photoUrl = urlData?.publicUrl ? `${urlData.publicUrl}?t=${Date.now()}` : null;
+
+      // Update profile record
+      if (photoUrl) {
+        const { error: updateError } = await sb.from('profiles')
+          .update({ avatar_url: photoUrl })
+          .eq('id', userId);
+
+        if (updateError) throw updateError;
+
+        // Update local state
+        const profile = State.get('profile');
+        if (profile) {
+          profile.avatar_url = photoUrl;
+          State.set('profile', profile);
+        }
+
+        // Update avatar display
+        const avatarEl = document.getElementById('perfil-avatar');
+        if (avatarEl) {
+          avatarEl.innerHTML = `<img src="${sanitizeHTML(photoUrl)}" style="width:100%;height:100%;object-fit:cover;" alt="Foto">`;
+        }
+
+        Toast.success('Foto atualizada com sucesso!');
+      }
+    } catch (err) {
+      console.error('[Patient] Photo upload error:', err);
+      Toast.error('Erro ao enviar foto. Tente novamente.');
+    } finally {
+      if (statusEl) statusEl.innerHTML = '';
+      input.value = '';
+    }
+  }
+
+  async function saveProfileContact() {
+    const btn = document.getElementById('perfil-save-btn');
+    const email = document.getElementById('perfil-email')?.value?.trim();
+    const phone = document.getElementById('perfil-phone')?.value?.replace(/\D/g, '');
+
+    if (!email) { Toast.warning('Informe o e-mail.'); return; }
+    if (phone && phone.length < 10) { Toast.warning('Telefone inválido.'); return; }
+
+    const userId = State.get('user')?.id;
+    if (!userId) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      // Update profiles table (email only — profiles has no phone column)
+      const { error: profileError } = await sb.from('profiles')
+        .update({ email })
+        .eq('id', userId);
+
+      if (profileError) throw profileError;
+
+      // Update patients table (email + phone)
+      const patient = State.get('patient');
+      if (patient?.id) {
+        const { error: patientError } = await sb.from('patients')
+          .update({ email, phone })
+          .eq('id', patient.id);
+
+        if (patientError) console.warn('[Patient] Patient table update warning:', patientError);
+
+        patient.email = email;
+        patient.phone = phone;
+        State.set('patient', patient);
+      }
+
+      // Update profile local state
+      const profile = State.get('profile');
+      if (profile) {
+        profile.email = email;
+        State.set('profile', profile);
+      }
+
+      Toast.success('Dados atualizados com sucesso!');
+    } catch (err) {
+      console.error('[Patient] Profile save error:', err);
+      Toast.error('Erro ao salvar. Tente novamente.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `${Icons.check} Salvar Alterações`;
+    }
+  }
+
+  // ─── Start Renewal Mode ───
+  function _startRenewal() {
+    isRenewalMode = true;
+    uploadedFiles = {};
+    wizardStep = 1;
+    Router.navigate('cadastro');
+  }
+
   // ─── Public API ───
-  return { render, _nextStep: _nextStep, _prevStep: _prevStep };
+  return { render, _nextStep, _prevStep, _startRenewal };
 })();
