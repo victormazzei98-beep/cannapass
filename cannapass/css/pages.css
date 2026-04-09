@@ -718,3 +718,23 @@
     max-height: none;
   }
 }
+
+/* ─── Mobile improvements ─── */
+@media (max-width: 480px) {
+  .public-verification { padding: 12px; }
+  .public-verification-card { max-width: 100%; }
+
+  .page-header h2 { font-size: 20px; }
+  .page-header p { font-size: 13px; }
+
+  /* Scrollable tables on mobile */
+  .table { display: block; overflow-x: auto; white-space: nowrap; }
+
+  /* Pagination buttons */
+  .pagination { gap: 4px !important; }
+  .pagination-btn { padding: 6px 10px; font-size: 12px; }
+
+  /* QR display */
+  .qr-display-card { padding: 16px; }
+  .qr-meta { grid-template-columns: 1fr !important; }
+}

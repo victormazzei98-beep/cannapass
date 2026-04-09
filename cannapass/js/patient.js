@@ -1581,6 +1581,72 @@ const Patient = (() => {
         Auth.changePassword();
       }
     });
+
+    // ─── Unsaved changes detection ───
+    const origEmail = document.getElementById('perfil-email')?.value || '';
+    const origPhone = document.getElementById('perfil-phone')?.value || '';
+    const saveBtn = document.getElementById('perfil-save-btn');
+
+    function checkDirty() {
+      const curEmail = document.getElementById('perfil-email')?.value || '';
+      const curPhone = document.getElementById('perfil-phone')?.value || '';
+      const isDirty = curEmail !== origEmail || curPhone !== origPhone;
+      if (saveBtn) {
+        saveBtn.style.opacity = isDirty ? '1' : '0.6';
+        saveBtn.title = isDirty ? 'Salvar alterações pendentes' : '';
+      }
+      return isDirty;
+    }
+
+    document.getElementById('perfil-email')?.addEventListener('input', checkDirty);
+    document.getElementById('perfil-phone')?.addEventListener('input', checkDirty);
+
+    // Warn on navigation if dirty
+    const _navWarn = () => {
+      if (checkDirty()) {
+        const leave = confirm('Você tem alterações não salvas. Deseja sair mesmo assim?');
+        if (!leave) {
+          // Re-set hash to perfil
+          window.removeEventListener('hashchange', _navWarn);
+          window.location.hash = 'perfil';
+          setTimeout(() => window.addEventListener('hashchange', _navWarn, { once: true }), 50);
+          return;
+        }
+      }
+      window.removeEventListener('hashchange', _navWarn);
+    };
+    window.addEventListener('hashchange', _navWarn, { once: true });
+  }
+
+  // ─── Compress image to max dimension using canvas ───
+  function compressImage(file, maxSize = 500) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxSize && height <= maxSize) {
+          resolve(file); // already small enough
+          return;
+        }
+        // Scale down proportionally
+        if (width > height) {
+          height = Math.round(height * (maxSize / width));
+          width = maxSize;
+        } else {
+          width = Math.round(width * (maxSize / height));
+          height = maxSize;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          resolve(blob || file);
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
   }
 
   async function handleProfilePhotoUpload(input) {
@@ -1591,16 +1657,17 @@ const Patient = (() => {
     const userId = State.get('user')?.id;
     if (!userId) return;
 
-    if (statusEl) statusEl.innerHTML = '<p class="text-muted text-sm">Enviando foto...</p>';
+    if (statusEl) statusEl.innerHTML = '<p class="text-muted text-sm">Comprimindo e enviando...</p>';
 
     try {
-      const ext = file.name.split('.').pop().toLowerCase();
-      const filePath = `${userId}/profile_photo.${ext}`;
+      // Compress before upload
+      const compressed = await compressImage(file, 500);
+      const filePath = `${userId}/profile_photo.jpg`;
 
       // Upload (upsert: true to replace existing)
       const { error: uploadError } = await sb.storage
         .from(STORAGE_BUCKET)
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+        .upload(filePath, compressed, { contentType: 'image/jpeg', upsert: true });
 
       if (uploadError) throw uploadError;
 
