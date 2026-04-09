@@ -701,9 +701,20 @@ const Router = (() => {
     return input;
   }
 
+  let _lastPublicSearch = 0;
+  const PUBLIC_SEARCH_COOLDOWN = 3000; // 3 seconds between searches
+
   async function performPublicSearch(token) {
     const resultArea = document.getElementById('public-search-result');
     if (!resultArea) return;
+
+    const now = Date.now();
+    if (now - _lastPublicSearch < PUBLIC_SEARCH_COOLDOWN) {
+      const secs = Math.ceil((PUBLIC_SEARCH_COOLDOWN - (now - _lastPublicSearch)) / 1000);
+      Toast.warning(`Aguarde ${secs}s antes de verificar novamente.`);
+      return;
+    }
+    _lastPublicSearch = now;
 
     resultArea.innerHTML = `
       <div class="text-center">

@@ -57,21 +57,21 @@ const Patient = (() => {
         <div class="stat-card">
           <div class="stat-icon">${Icons['stat-docs']}</div>
           <div class="stat-info">
-            <div class="stat-value" id="doc-count">—</div>
+            <div class="stat-value" id="doc-count"><span class="skeleton-text">--</span></div>
             <div class="stat-label">Documentos Enviados</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">${Icons['stat-qr']}</div>
           <div class="stat-info">
-            <div class="stat-value" id="qr-count">—</div>
+            <div class="stat-value" id="qr-count"><span class="skeleton-text">--</span></div>
             <div class="stat-label">QR Codes Ativos</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">${Icons['stat-travel']}</div>
           <div class="stat-info">
-            <div class="stat-value" id="trip-count">—</div>
+            <div class="stat-value" id="trip-count"><span class="skeleton-text">--</span></div>
             <div class="stat-label">Viagens Registradas</div>
           </div>
         </div>
@@ -1357,7 +1357,11 @@ const Patient = (() => {
   // ═══════════════════════════════════════
   //  HISTÓRICO
   // ═══════════════════════════════════════
+  let historicoPage = 0;
+  const HISTORICO_PAGE_SIZE = 10;
+
   async function renderHistorico(container) {
+    historicoPage = 0;
     container.innerHTML = `
       <div class="page-header">
         <h2>Histórico</h2>
@@ -1369,18 +1373,25 @@ const Patient = (() => {
         </div>
       </div>
     `;
+    await loadHistoricoPage();
+  }
 
-    const userId = State.get('user')?.id;
-    const { data: travels, error } = await sb
-      .from('travel_data')
-      .select('*, qr_codes(*)')
-      .eq('user_id', userId)
-      .order('departure_date', { ascending: false });
-
+  async function loadHistoricoPage() {
     const content = document.getElementById('history-content');
     if (!content) return;
 
-    if (error || !travels?.length) {
+    const userId = State.get('user')?.id;
+    const from = historicoPage * HISTORICO_PAGE_SIZE;
+    const to = from + HISTORICO_PAGE_SIZE - 1;
+
+    const { data: travels, error, count } = await sb
+      .from('travel_data')
+      .select('*, qr_codes(*)', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('departure_date', { ascending: false })
+      .range(from, to);
+
+    if (error || (!travels?.length && historicoPage === 0)) {
       content.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">${Icons['empty-clock']}</div>
@@ -1390,6 +1401,8 @@ const Patient = (() => {
       `;
       return;
     }
+
+    const totalPages = Math.ceil((count || 0) / HISTORICO_PAGE_SIZE);
 
     content.innerHTML = `
       <table class="table">
@@ -1402,7 +1415,7 @@ const Patient = (() => {
           </tr>
         </thead>
         <tbody>
-          ${travels.map(t => {
+          ${(travels || []).map(t => {
             const qr = t.qr_codes?.[0];
             const expired = t.departure_date && !isFutureDate(t.departure_date);
             return `
@@ -1418,7 +1431,21 @@ const Patient = (() => {
           }).join('')}
         </tbody>
       </table>
+      ${totalPages > 1 ? `
+        <div class="pagination mt-md" style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
+          <button class="pagination-btn" id="hist-prev" ${historicoPage === 0 ? 'disabled' : ''}>&laquo; Anterior</button>
+          <span class="text-sm text-muted" style="padding:8px;">${historicoPage + 1} / ${totalPages}</span>
+          <button class="pagination-btn" id="hist-next" ${historicoPage >= totalPages - 1 ? 'disabled' : ''}>Próxima &raquo;</button>
+        </div>
+      ` : ''}
     `;
+
+    document.getElementById('hist-prev')?.addEventListener('click', () => {
+      if (historicoPage > 0) { historicoPage--; loadHistoricoPage(); }
+    });
+    document.getElementById('hist-next')?.addEventListener('click', () => {
+      if (historicoPage < totalPages - 1) { historicoPage++; loadHistoricoPage(); }
+    });
   }
 
   // ═══════════════════════════════════════
@@ -1503,9 +1530,45 @@ const Patient = (() => {
       e.target.value = maskPhone(e.target.value);
     });
 
-    // Photo upload handler
+    // Photo upload handler with preview
     const photoInput = document.getElementById('perfil-photo-input');
-    photoInput?.addEventListener('change', () => handleProfilePhotoUpload(photoInput));
+    photoInput?.addEventListener('change', () => {
+      const file = photoInput.files?.[0];
+      if (!file) return;
+      if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        Toast.error('Formato inválido. Use JPG ou PNG.');
+        photoInput.value = '';
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        Toast.error('A foto deve ter no máximo 2MB.');
+        photoInput.value = '';
+        return;
+      }
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const avatarEl = document.getElementById('perfil-avatar');
+        if (avatarEl) avatarEl.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;" alt="Preview">`;
+        const statusEl = document.getElementById('perfil-photo-status');
+        if (statusEl) statusEl.innerHTML = `
+          <div style="display:flex;gap:8px;justify-content:center;">
+            <button class="btn btn-primary btn-sm" id="perfil-photo-confirm">${Icons.check} Confirmar</button>
+            <button class="btn btn-secondary btn-sm" id="perfil-photo-cancel">${Icons.x} Cancelar</button>
+          </div>
+        `;
+        document.getElementById('perfil-photo-confirm')?.addEventListener('click', () => handleProfilePhotoUpload(photoInput));
+        document.getElementById('perfil-photo-cancel')?.addEventListener('click', () => {
+          photoInput.value = '';
+          statusEl.innerHTML = '';
+          const profile = State.get('profile');
+          if (avatarEl) avatarEl.innerHTML = profile?.avatar_url
+            ? `<img src="${sanitizeHTML(profile.avatar_url)}" style="width:100%;height:100%;object-fit:cover;" alt="Foto">`
+            : getInitials(profile?.full_name);
+        });
+      };
+      reader.readAsDataURL(file);
+    });
 
     // Save contact info
     document.getElementById('perfil-save-btn')?.addEventListener('click', saveProfileContact);
@@ -1525,17 +1588,6 @@ const Patient = (() => {
     if (!file) return;
 
     const statusEl = document.getElementById('perfil-photo-status');
-
-    // Validate: image only, max 2MB
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      Toast.error('Formato inválido. Use JPG ou PNG.');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      Toast.error('A foto deve ter no máximo 2MB.');
-      return;
-    }
-
     const userId = State.get('user')?.id;
     if (!userId) return;
 

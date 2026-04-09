@@ -214,6 +214,8 @@ const Agent = (() => {
       } catch (e) { console.warn('[OfflineCache] save error:', e); }
     }
 
+    const TTL_HOURS = 24; // cached results expire after 24h
+
     async function get(token) {
       try {
         const db = await openDB();
@@ -221,8 +223,25 @@ const Agent = (() => {
         const req = tx.objectStore(STORE).get(token);
         const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
         db.close();
-        return result || null;
+        if (!result) return null;
+        // Check TTL
+        const ageHours = (Date.now() - new Date(result.cachedAt).getTime()) / (1000 * 60 * 60);
+        if (ageHours > TTL_HOURS) {
+          remove(token); // async cleanup, don't await
+          return null;
+        }
+        return result;
       } catch (e) { console.warn('[OfflineCache] get error:', e); return null; }
+    }
+
+    async function remove(token) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).delete(token);
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        db.close();
+      } catch (e) { /* ignore */ }
     }
 
     return { save, get };

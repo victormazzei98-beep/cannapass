@@ -846,3 +846,19 @@
 @media (max-width: 480px) {
   .notif-panel { width: calc(100vw - 24px); right: -8px; }
 }
+
+/* ─── Skeleton Loading ─── */
+.skeleton-text {
+  display: inline-block;
+  background: linear-gradient(90deg, var(--surface-hover) 25%, var(--border) 50%, var(--surface-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  color: transparent;
+  min-width: 40px;
+  user-select: none;
+}
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
