@@ -79,6 +79,7 @@ const Router = (() => {
 
     buildSidebar();
     updateUserInfo();
+    renderLangToggle();
 
     window.removeEventListener('hashchange', handleRoute);
     window.addEventListener('hashchange', handleRoute);
@@ -243,6 +244,30 @@ const Router = (() => {
     if (avatar) avatar.textContent = getInitials(profile.full_name);
     if (name) name.textContent = profile.full_name || 'Usuário';
     if (role) role.textContent = getRoleLabel(profile.role);
+  }
+
+  // ─── Render Language Toggle (Agent portal only) ───
+  function renderLangToggle() {
+    const role = getEffectiveRole();
+    const topbarRight = document.getElementById('topbar-right');
+    if (!topbarRight) return;
+
+    // Remove existing toggle
+    document.getElementById('lang-toggle-btn')?.remove();
+
+    // Only show for agent portal
+    if (role !== ROLES.AGENT || typeof I18n === 'undefined') return;
+
+    const btn = document.createElement('button');
+    btn.id = 'lang-toggle-btn';
+    btn.className = 'btn btn-sm btn-secondary';
+    btn.style.cssText = 'font-weight:700;min-width:36px;padding:6px 10px;font-size:12px;';
+    btn.textContent = I18n.lang() === 'pt' ? 'EN' : 'PT';
+    btn.setAttribute('aria-label', 'Alternar idioma');
+    btn.addEventListener('click', () => I18n.toggle());
+
+    // Insert before notification bell (first child)
+    topbarRight.insertBefore(btn, topbarRight.firstChild);
   }
 
   // ─── Render Page Content ───

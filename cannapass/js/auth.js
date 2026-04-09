@@ -62,9 +62,11 @@ const Auth = (() => {
           } else {
             showApp();
             Router.init();
+            if (typeof Notifications !== 'undefined') Notifications.init();
           }
         } else if (event === 'SIGNED_OUT') {
           _isRecoveryFlow = false;
+          if (typeof Notifications !== 'undefined') Notifications.destroy();
           State.reset();
           hideLoading();
           document.getElementById('portal-select-container')?.classList.add('hidden');
@@ -104,6 +106,7 @@ const Auth = (() => {
           } else {
             showApp();
             Router.init();
+            if (typeof Notifications !== 'undefined') Notifications.init();
           }
         } else {
           hideLoading();
@@ -463,6 +466,7 @@ const Auth = (() => {
     document.getElementById('portal-select-container')?.classList.add('hidden');
     showApp();
     Router.init(true); // force rebuild
+    if (typeof Notifications !== 'undefined') Notifications.init();
   }
 
   // ─── Setup Auth UI Events ───
@@ -624,6 +628,7 @@ const Auth = (() => {
           } else {
             showApp();
             Router.init();
+            if (typeof Notifications !== 'undefined') Notifications.init();
           }
         } else {
           showAuthPanel('auth-login');
@@ -732,6 +737,7 @@ const Auth = (() => {
 
 // ─── Boot ───
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof I18n !== 'undefined') I18n.init();
   Theme.init();
   Auth.init();
 });
