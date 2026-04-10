@@ -123,6 +123,9 @@ const Agent = (() => {
 
   async function startScanner() {
     try {
+      // Lazy load QR scanner lib
+      await LazyLoad.qrScanner();
+
       const readerEl = document.getElementById('qr-reader');
       if (!readerEl) return;
 

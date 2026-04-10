@@ -209,6 +209,9 @@ const Admin = (() => {
 
   async function loadCharts() {
     try {
+      // Lazy load Chart.js
+      await LazyLoad.chartJS();
+
       // Destroy previous instances
       if (chartRegistrations) { chartRegistrations.destroy(); chartRegistrations = null; }
       if (chartStatus) { chartStatus.destroy(); chartStatus = null; }
@@ -440,7 +443,10 @@ const Admin = (() => {
     }
   }
 
-  function initBrazilMap(container, geojson, routeData) {
+  async function initBrazilMap(container, geojson, routeData) {
+    // Lazy load Leaflet
+    await LazyLoad.leaflet();
+
     // Destroy previous map instance
     if (transportMap) {
       transportMap.remove();
@@ -1702,6 +1708,10 @@ const Admin = (() => {
   async function exportPDF() {
     try {
       Toast.info('Gerando PDF...');
+
+      // Lazy load jsPDF
+      await LazyLoad.jsPDF();
+
       const { data, error } = await sb.from('patients').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       if (!data?.length) { Toast.warning('Nenhum dado para exportar.'); return; }

@@ -4,7 +4,7 @@
    push notification display
    ═══════════════════════════════════════════ */
 
-const CACHE_NAME = 'cannapass-v1';
+const CACHE_NAME = 'cannapass-v3';
 
 // App shell — local files to cache on install
 const APP_SHELL = [
@@ -39,11 +39,19 @@ const CDN_HOSTS = [
   'unpkg.com'
 ];
 
-// ─── Install: cache app shell ───
+// ─── Install: cache app shell (bypass HTTP cache) ───
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache =>
+        Promise.all(
+          APP_SHELL.map(url =>
+            fetch(url, { cache: 'no-cache' })
+              .then(resp => resp.ok ? cache.put(url, resp) : undefined)
+              .catch(() => {}) // ignore failures for individual files
+          )
+        )
+      )
       .then(() => self.skipWaiting())
   );
 });

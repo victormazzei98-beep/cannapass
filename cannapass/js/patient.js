@@ -163,6 +163,28 @@ const Patient = (() => {
       if (State.get('currentPage') === 'dashboard') loadDashboardStats();
       else clearInterval(_dashboardRefreshTimer);
     }, 60000);
+
+    // Pull-to-refresh (mobile touch)
+    let _pullStartY = 0;
+    let _pulling = false;
+    const mainArea = document.querySelector('.main-area');
+    if (mainArea) {
+      mainArea.addEventListener('touchstart', (e) => {
+        if (mainArea.scrollTop === 0) {
+          _pullStartY = e.touches[0].clientY;
+          _pulling = true;
+        }
+      }, { passive: true });
+      mainArea.addEventListener('touchend', (e) => {
+        if (!_pulling) return;
+        _pulling = false;
+        const dy = e.changedTouches[0].clientY - _pullStartY;
+        if (dy > 80 && State.get('currentPage') === 'dashboard') {
+          Toast.info('Atualizando...');
+          loadDashboardStats();
+        }
+      }, { passive: true });
+    }
   }
 
   async function loadDashboardStats() {
@@ -1756,13 +1778,19 @@ const Patient = (() => {
       }
 
       // Update profile local state
+      const prevEmail = State.get('profile')?.email;
       const profile = State.get('profile');
       if (profile) {
         profile.email = email;
         State.set('profile', profile);
       }
 
-      Toast.success('Dados atualizados com sucesso!');
+      // If email changed, inform about verification
+      if (prevEmail && prevEmail !== email) {
+        Toast.success('Dados atualizados! Verifique o novo e-mail para confirmação.');
+      } else {
+        Toast.success('Dados atualizados com sucesso!');
+      }
     } catch (err) {
       console.error('[Patient] Profile save error:', err);
       Toast.error('Erro ao salvar. Tente novamente.');

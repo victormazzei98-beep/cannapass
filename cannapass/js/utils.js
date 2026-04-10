@@ -467,6 +467,49 @@ function validateFieldInline(input, validatorFn, errorMsg) {
   return handler;
 }
 
+// ─── Lazy Script Loader ───
+const LazyLoad = (() => {
+  const _loaded = new Set();
+  const _loading = {};
+
+  function script(url) {
+    if (_loaded.has(url)) return Promise.resolve();
+    if (_loading[url]) return _loading[url];
+
+    _loading[url] = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => { _loaded.add(url); delete _loading[url]; resolve(); };
+      s.onerror = () => { delete _loading[url]; reject(new Error(`Failed to load: ${url}`)); };
+      document.head.appendChild(s);
+    });
+    return _loading[url];
+  }
+
+  async function chartJS() {
+    if (typeof Chart !== 'undefined') return;
+    await script('https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js');
+  }
+
+  async function leaflet() {
+    if (typeof L !== 'undefined') return;
+    await script('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js');
+  }
+
+  async function jsPDF() {
+    if (typeof window.jspdf !== 'undefined') return;
+    await script('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js');
+    await script('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+  }
+
+  async function qrScanner() {
+    if (typeof Html5Qrcode !== 'undefined') return;
+    await script('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js');
+  }
+
+  return { script, chartJS, leaflet, jsPDF, qrScanner };
+})();
+
 // ─── Global Error Handler ───
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise]', event.reason);

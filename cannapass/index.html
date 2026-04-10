@@ -320,20 +320,11 @@
     </div>
   </div>
 
-  <!-- ═══ CDN Libraries ═══ -->
+  <!-- ═══ CDN Libraries (essential only — Chart.js, Leaflet, jsPDF, QR Scanner lazy-loaded) ═══ -->
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- QR Code Generator -->
+  <!-- QR Code Generator (small, used by patient) -->
   <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
-  <!-- QR Scanner (Camera) -->
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-  <!-- Leaflet Map -->
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- jsPDF + AutoTable -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- Day.js + Plugins -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/pt-br.js"></script>
@@ -356,7 +347,7 @@
   <script src="js/admin.js"></script>
   <script src="js/notifications.js"></script>
 
-  <!-- ═══ Service Worker Registration ═══ -->
+  <!-- ═══ Service Worker Registration + PWA Install Prompt ═══ -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -365,6 +356,48 @@
           .catch(err => console.warn('[SW] Registration failed:', err));
       });
     }
+    // PWA Install Prompt
+    let _deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      _deferredInstallPrompt = e;
+      // Show install banner after 5s if not dismissed before
+      setTimeout(() => {
+        if (!_deferredInstallPrompt) return;
+        if (localStorage.getItem('cannapass-pwa-dismissed')) return;
+        const banner = document.createElement('div');
+        banner.id = 'pwa-install-banner';
+        banner.className = 'pwa-install-banner';
+        banner.innerHTML = `
+          <span class="pwa-install-text">Instalar Cannapass no seu dispositivo</span>
+          <div class="pwa-install-actions">
+            <button class="btn btn-primary btn-sm" id="pwa-install-btn">Instalar</button>
+            <button class="btn btn-ghost btn-sm" id="pwa-dismiss-btn">Agora não</button>
+          </div>
+        `;
+        document.body.appendChild(banner);
+        requestAnimationFrame(() => banner.classList.add('visible'));
+        document.getElementById('pwa-install-btn')?.addEventListener('click', async () => {
+          banner.remove();
+          if (_deferredInstallPrompt) {
+            _deferredInstallPrompt.prompt();
+            const { outcome } = await _deferredInstallPrompt.userChoice;
+            console.log('[PWA] Install outcome:', outcome);
+            _deferredInstallPrompt = null;
+          }
+        });
+        document.getElementById('pwa-dismiss-btn')?.addEventListener('click', () => {
+          banner.remove();
+          localStorage.setItem('cannapass-pwa-dismissed', '1');
+          _deferredInstallPrompt = null;
+        });
+      }, 5000);
+    });
+    window.addEventListener('appinstalled', () => {
+      _deferredInstallPrompt = null;
+      document.getElementById('pwa-install-banner')?.remove();
+      console.log('[PWA] App installed');
+    });
   </script>
 
 </body>

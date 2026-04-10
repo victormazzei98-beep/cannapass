@@ -481,8 +481,10 @@ const Router = (() => {
   }
 
   // ─── Generate Verification PDF ───
-  function generateVerificationPDF(data) {
-    if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
+  async function generateVerificationPDF(data) {
+    try {
+      await LazyLoad.jsPDF();
+    } catch {
       Toast.error('Erro ao carregar gerador de PDF.');
       return;
     }
