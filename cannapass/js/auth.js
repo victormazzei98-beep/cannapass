@@ -36,12 +36,11 @@ const Auth = (() => {
     const hashParams = window.location.hash;
     if (hashParams.includes('type=recovery') || hashParams.includes('type%3Drecovery')) {
       _isRecoveryFlow = true;
-      console.log('[Auth] Recovery flow detected from URL hash');
     }
 
     // Listen for auth state changes
     sb.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] State change:', event, '_isRecoveryFlow:', _isRecoveryFlow);
+      // Auth state change handler
       try {
         if (event === 'PASSWORD_RECOVERY') {
           // User clicked the reset link in their email — highest priority
@@ -51,7 +50,7 @@ const Auth = (() => {
           showAuthPanel('auth-reset');
         } else if (event === 'SIGNED_IN' && session && _isRecoveryFlow) {
           // Ignore SIGNED_IN during recovery flow — wait for PASSWORD_RECOVERY event
-          console.log('[Auth] Ignoring SIGNED_IN during recovery flow');
+          // Ignore SIGNED_IN during recovery flow
           State.set('user', session.user);
         } else if (event === 'SIGNED_IN' && session) {
           await loadUserData(session.user);
@@ -95,7 +94,7 @@ const Auth = (() => {
       if (_isRecoveryFlow) {
         // During recovery, don't auto-navigate to dashboard
         // The PASSWORD_RECOVERY event will handle showing the reset form
-        console.log('[Auth] Skipping auto-login for recovery flow');
+        // Skipping auto-login for recovery flow
         hideLoading();
       } else {
         const { data: { session } } = await sb.auth.getSession();

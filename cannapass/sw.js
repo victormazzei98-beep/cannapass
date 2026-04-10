@@ -27,7 +27,8 @@ const APP_SHELL = [
   '/js/agent.js',
   '/js/admin.js',
   '/js/notifications.js',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon.svg'
 ];
 
 // CDN libraries to cache on first use

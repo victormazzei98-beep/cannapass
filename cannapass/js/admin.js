@@ -1140,7 +1140,6 @@ const Admin = (() => {
         }
       });
       if (error) console.warn('[Admin] Notification send warning:', error);
-      else console.log('[Admin] Notification sent:', data);
     } catch (err) {
       // Don't block the main flow if email fails
       console.warn('[Admin] Notification error (non-blocking):', err);

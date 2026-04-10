@@ -1090,7 +1090,7 @@ const Agent = (() => {
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">Detalhes da Verificação</h3>
-          <button class="btn btn-sm btn-secondary" id="close-detail-btn">${Icons.x}</button>
+          <button class="btn btn-sm btn-secondary" id="close-detail-btn" aria-label="Fechar detalhes">${Icons.x}</button>
         </div>
         <div class="card-body">
           <div class="verification-data">
