@@ -363,6 +363,11 @@ const Patient = (() => {
     phoneInput?.addEventListener('input', (e) => {
       e.target.value = maskPhone(e.target.value);
     });
+    // Inline validation
+    const emailInput = document.getElementById('w-email');
+    validateFieldInline(emailInput, validateEmail, 'E-mail inválido');
+    validateFieldInline(phoneInput, v => v.replace(/\D/g, '').length >= 10, 'Telefone incompleto');
+    validateFieldInline(document.getElementById('w-birth'), v => !isFutureDate(v), 'Data no futuro');
     // CPF validation on blur
     cpfInput?.addEventListener('blur', async () => {
       const val = cpfInput.value;

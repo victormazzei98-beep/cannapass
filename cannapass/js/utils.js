@@ -436,6 +436,37 @@ function setButtonLoading(btn, loading, text) {
   }
 }
 
+// ─── Inline Form Validation ───
+function validateFieldInline(input, validatorFn, errorMsg) {
+  if (!input) return;
+  const handler = () => {
+    const val = input.value.trim();
+    const group = input.closest('.form-group');
+    if (!val) {
+      input.classList.remove('input-valid', 'input-invalid');
+      if (group) group.querySelector('.inline-error')?.remove();
+      return;
+    }
+    const isValid = validatorFn(val);
+    input.classList.toggle('input-valid', isValid);
+    input.classList.toggle('input-invalid', !isValid);
+    // Show/remove inline error
+    let errEl = group?.querySelector('.inline-error');
+    if (!isValid && errorMsg) {
+      if (!errEl && group) {
+        errEl = document.createElement('span');
+        errEl.className = 'inline-error form-hint text-red';
+        group.appendChild(errEl);
+      }
+      if (errEl) errEl.textContent = errorMsg;
+    } else if (errEl) {
+      errEl.remove();
+    }
+  };
+  input.addEventListener('blur', handler);
+  return handler;
+}
+
 // ─── Global Error Handler ───
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise]', event.reason);

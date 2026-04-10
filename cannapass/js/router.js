@@ -134,6 +134,10 @@ const Router = (() => {
     // Close mobile sidebar
     document.getElementById('sidebar')?.classList.remove('open');
     document.getElementById('sidebar-overlay')?.classList.remove('open');
+
+    // Scroll to top on page change
+    const mainArea = document.querySelector('.main-area');
+    if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // ─── Navigate to a page ───

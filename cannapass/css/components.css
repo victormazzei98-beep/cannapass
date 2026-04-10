@@ -52,6 +52,11 @@
 .btn-block { width: 100%; }
 .btn-icon { padding: 8px; border-radius: var(--radius-xs); }
 
+/* ─── Inline Validation ─── */
+.form-input.input-valid { border-color: var(--green); }
+.form-input.input-invalid { border-color: var(--red); }
+.inline-error { display: block; margin-top: 4px; font-size: 12px; }
+
 .btn:disabled, .btn.loading, .btn.btn-loading {
   opacity: 0.6;
   pointer-events: none;

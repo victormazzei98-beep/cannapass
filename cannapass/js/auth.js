@@ -680,6 +680,43 @@ const Auth = (() => {
       document.getElementById('sidebar')?.classList.remove('open');
       document.getElementById('sidebar-overlay')?.classList.remove('open');
     });
+
+    // Touch swipe to open/close sidebar
+    let _touchStartX = 0;
+    let _touchStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+      _touchStartX = e.touches[0].clientX;
+      _touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - _touchStartX;
+      const dy = Math.abs(e.changedTouches[0].clientY - _touchStartY);
+      if (dy > 80) return; // ignore vertical swipes
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (dx > 60 && _touchStartX < 40) {
+        // Swipe right from left edge → open
+        sidebar?.classList.add('open');
+        overlay?.classList.add('open');
+      } else if (dx < -60 && sidebar?.classList.contains('open')) {
+        // Swipe left while open → close
+        sidebar?.classList.remove('open');
+        overlay?.classList.remove('open');
+      }
+    }, { passive: true });
+
+    // Keyboard: Escape closes modals, sidebar, notification panel
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      // Close notification panel
+      document.querySelector('.notif-panel.open')?.classList.remove('open');
+      // Close mobile sidebar
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar?.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        document.getElementById('sidebar-overlay')?.classList.remove('open');
+      }
+    });
   }
 
   // ─── Toggle Login/Signup Mode ───
