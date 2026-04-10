@@ -510,11 +510,40 @@ const LazyLoad = (() => {
   return { script, chartJS, leaflet, jsPDF, qrScanner };
 })();
 
-// ─── Global Error Handler ───
+// ─── Global Error Boundary ───
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise]', event.reason);
   Toast.error('Ocorreu um erro inesperado. Tente novamente.');
 });
+
+window.addEventListener('error', (event) => {
+  console.error('[Global Error]', event.error);
+  // Show fallback UI only for critical render errors
+  const main = document.getElementById('main-content');
+  if (main && !main.innerHTML.trim()) {
+    main.innerHTML = `
+      <div style="padding:40px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">&#9888;</div>
+        <h3>Algo deu errado</h3>
+        <p style="color:var(--muted);margin:12px 0;">Ocorreu um erro ao carregar esta página.</p>
+        <button class="btn btn-primary" onclick="window.location.reload()">Recarregar</button>
+      </div>
+    `;
+  }
+});
+
+// ─── API Retry Helper ───
+async function fetchWithRetry(fn, retries = 2, delay = 1000) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const result = await fn();
+      return result;
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, delay * (i + 1)));
+    }
+  }
+}
 
 // ─── Offline Detection ───
 window.addEventListener('offline', () => {

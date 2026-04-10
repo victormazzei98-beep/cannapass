@@ -738,3 +738,36 @@
   .qr-display-card { padding: 16px; }
   .qr-meta { grid-template-columns: 1fr !important; }
 }
+
+/* ─── Print Styles ─── */
+@media print {
+  /* Hide navigation, sidebar, topbar, toasts, modals */
+  .sidebar, .sidebar-overlay, .topbar, .toast-container,
+  .modal-overlay, .pwa-install-banner, #loading-screen,
+  .skip-to-content, .notif-bell-btn, .notif-panel,
+  #topbar-right, .topbar-hamburger { display: none !important; }
+
+  /* Full width for main content */
+  .app-container { display: block !important; }
+  .main-area { margin: 0 !important; padding: 0 !important; }
+  .main-content { padding: 0 !important; animation: none !important; }
+
+  /* Public verification print layout */
+  .public-verification { padding: 0 !important; min-height: auto !important; background: #fff !important; }
+  .public-verification-card { box-shadow: none !important; border: 1px solid #ccc !important; }
+
+  /* Force light colors for print */
+  body, .card, .stat-card { background: #fff !important; color: #111 !important; }
+  .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+  .text-muted { color: #555 !important; }
+  .badge { border: 1px solid #999 !important; }
+
+  /* Hide buttons except download/print */
+  .btn:not(.btn-print) { display: none !important; }
+
+  /* QR code should be visible */
+  canvas, .qr-canvas { display: block !important; }
+
+  /* Page break for verification result */
+  .verification-result { page-break-inside: avoid; }
+}

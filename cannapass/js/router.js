@@ -458,11 +458,16 @@ const Router = (() => {
             </div>
           </div>
 
-          <!-- Download PDF -->
-          ${!isExpired ? `
-          <button class="btn btn-primary btn-block mt-lg" id="download-pdf-btn">
-            ${Icons.documentos} Baixar Comprovante em PDF
-          </button>` : ''}
+          <!-- Actions -->
+          <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;">
+            ${!isExpired ? `
+            <button class="btn btn-primary" style="flex:1;" id="download-pdf-btn">
+              ${Icons.documentos} Baixar PDF
+            </button>` : ''}
+            <button class="btn btn-secondary btn-print" style="flex:1;" onclick="window.print()">
+              Imprimir
+            </button>
+          </div>
 
           <!-- Footer -->
           <p class="text-xs text-muted text-center mt-lg">

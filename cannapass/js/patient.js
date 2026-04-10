@@ -19,6 +19,32 @@ const Patient = (() => {
   let uploadedFiles = {};
   let isRenewalMode = false;
   let _dashboardRefreshTimer = null;
+  const WIZARD_DRAFT_KEY = 'cannapass-wizard-draft';
+
+  function saveWizardDraft() {
+    try {
+      const draft = { wizardData, wizardStep, savedAt: Date.now() };
+      localStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(draft));
+    } catch { /* ignore quota errors */ }
+  }
+
+  function loadWizardDraft() {
+    try {
+      const raw = localStorage.getItem(WIZARD_DRAFT_KEY);
+      if (!raw) return null;
+      const draft = JSON.parse(raw);
+      // Discard drafts older than 24h
+      if (Date.now() - draft.savedAt > 86400000) {
+        localStorage.removeItem(WIZARD_DRAFT_KEY);
+        return null;
+      }
+      return draft;
+    } catch { return null; }
+  }
+
+  function clearWizardDraft() {
+    localStorage.removeItem(WIZARD_DRAFT_KEY);
+  }
 
   function render(page, container) {
     switch (page) {
@@ -190,11 +216,11 @@ const Patient = (() => {
   async function loadDashboardStats() {
     const userId = State.get('user')?.id;
     if (!userId) return;
-    const [docsRes, qrRes, tripsRes] = await Promise.all([
+    const [docsRes, qrRes, tripsRes] = await fetchWithRetry(() => Promise.all([
       sb.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       sb.from('qr_codes').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
       sb.from('travel_data').select('id', { count: 'exact', head: true }).eq('user_id', userId)
-    ]);
+    ]));
     const el = (id) => document.getElementById(id);
     if (el('doc-count')) el('doc-count').textContent = docsRes.count ?? 0;
     if (el('qr-count')) el('qr-count').textContent = qrRes.count ?? 0;
@@ -246,6 +272,16 @@ const Patient = (() => {
         </div></div>
       `;
       return;
+    }
+
+    // Recover draft if available (only for new registrations)
+    if (!patient && !isRenewalMode) {
+      const draft = loadWizardDraft();
+      if (draft && draft.wizardData?.full_name) {
+        wizardData = draft.wizardData;
+        wizardStep = draft.wizardStep || 1;
+        Toast.info('Rascunho recuperado. Continue de onde parou.');
+      }
     }
 
     // Pre-fill wizard data from existing patient record
@@ -637,6 +673,8 @@ const Patient = (() => {
         }
         break;
     }
+    // Auto-save draft
+    saveWizardDraft();
   }
 
   // ─── Validate current step ───
@@ -820,6 +858,8 @@ const Patient = (() => {
       State.set('patient', patient);
       uploadedFiles = {};
       wizardStep = 1;
+
+      clearWizardDraft();
 
       if (isRenewalMode) {
         isRenewalMode = false;
@@ -1785,9 +1825,15 @@ const Patient = (() => {
         State.set('profile', profile);
       }
 
-      // If email changed, inform about verification
+      // If email changed, send confirmation and inform
       if (prevEmail && prevEmail !== email) {
-        Toast.success('Dados atualizados! Verifique o novo e-mail para confirmação.');
+        Toast.success('Dados atualizados! Enviando confirmação para o novo e-mail...');
+        // Fire-and-forget: send confirmation email via Edge Function
+        sb.functions.invoke('confirm-email-change', {
+          body: { newEmail: email }
+        }).then(({ error }) => {
+          if (error) console.warn('[Patient] Email confirmation send failed:', error);
+        });
       } else {
         Toast.success('Dados atualizados com sucesso!');
       }
