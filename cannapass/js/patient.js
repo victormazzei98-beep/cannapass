@@ -18,6 +18,7 @@ const Patient = (() => {
   };
   let uploadedFiles = {};
   let isRenewalMode = false;
+  let _dashboardRefreshTimer = null;
 
   function render(page, container) {
     switch (page) {
@@ -155,6 +156,13 @@ const Patient = (() => {
       </div>
     `;
     loadDashboardStats();
+
+    // Auto-refresh stats every 60s while on dashboard
+    clearInterval(_dashboardRefreshTimer);
+    _dashboardRefreshTimer = setInterval(() => {
+      if (State.get('currentPage') === 'dashboard') loadDashboardStats();
+      else clearInterval(_dashboardRefreshTimer);
+    }, 60000);
   }
 
   async function loadDashboardStats() {
@@ -1718,8 +1726,7 @@ const Patient = (() => {
     const userId = State.get('user')?.id;
     if (!userId) return;
 
-    btn.disabled = true;
-    btn.textContent = 'Salvando...';
+    setButtonLoading(btn, true, 'Salvando...');
 
     try {
       // Update profiles table (email only — profiles has no phone column)
@@ -1755,8 +1762,7 @@ const Patient = (() => {
       console.error('[Patient] Profile save error:', err);
       Toast.error('Erro ao salvar. Tente novamente.');
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = `${Icons.check} Salvar Alterações`;
+      setButtonLoading(btn, false);
     }
   }
 

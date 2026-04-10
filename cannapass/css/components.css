@@ -52,13 +52,13 @@
 .btn-block { width: 100%; }
 .btn-icon { padding: 8px; border-radius: var(--radius-xs); }
 
-.btn:disabled, .btn.loading {
+.btn:disabled, .btn.loading, .btn.btn-loading {
   opacity: 0.6;
   pointer-events: none;
 }
 
-.btn.loading .btn-text { visibility: hidden; }
-.btn.loading::after {
+.btn.loading .btn-text, .btn.btn-loading .btn-text { visibility: hidden; }
+.btn.loading::after, .btn.btn-loading::after {
   content: '';
   position: absolute;
   width: 18px;

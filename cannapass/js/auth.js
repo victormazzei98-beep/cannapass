@@ -56,6 +56,7 @@ const Auth = (() => {
         } else if (event === 'SIGNED_IN' && session) {
           await loadUserData(session.user);
           hideLoading();
+          startSessionMonitor();
           const profile = State.get('profile');
           if (isAdminWithPortalChoice(profile) && !State.get('activeRole')) {
             showPortalSelect();
@@ -66,6 +67,7 @@ const Auth = (() => {
           }
         } else if (event === 'SIGNED_OUT') {
           _isRecoveryFlow = false;
+          stopSessionMonitor();
           if (typeof Notifications !== 'undefined') Notifications.destroy();
           State.reset();
           hideLoading();
@@ -100,6 +102,7 @@ const Auth = (() => {
         if (session) {
           await loadUserData(session.user);
           hideLoading();
+          startSessionMonitor();
           const prof = State.get('profile');
           if (isAdminWithPortalChoice(prof) && !State.get('activeRole')) {
             showPortalSelect();
@@ -732,7 +735,35 @@ const Auth = (() => {
     showAuthPanel('auth-login');
   }
 
-  return { init, logout, loadUserData, changePassword: showChangePasswordModal, showPortalSelect, enterPortal };
+  // ─── Session Timeout Warning ───
+  let _sessionCheckTimer = null;
+
+  function startSessionMonitor() {
+    clearInterval(_sessionCheckTimer);
+    _sessionCheckTimer = setInterval(async () => {
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) return;
+        const expiresAt = session.expires_at; // Unix timestamp in seconds
+        if (!expiresAt) return;
+        const remaining = expiresAt - Math.floor(Date.now() / 1000);
+        if (remaining < 300 && remaining > 240) {
+          // Warn ~5 min before expiry (only once in the 60s window)
+          Toast.warning('Sua sessão expira em breve. Salve seu trabalho.');
+        } else if (remaining <= 0) {
+          clearInterval(_sessionCheckTimer);
+          Toast.error('Sessão expirada. Faça login novamente.');
+          logout();
+        }
+      } catch { /* ignore */ }
+    }, 60000);
+  }
+
+  function stopSessionMonitor() {
+    clearInterval(_sessionCheckTimer);
+  }
+
+  return { init, logout, loadUserData, changePassword: showChangePasswordModal, showPortalSelect, enterPortal, startSessionMonitor, stopSessionMonitor };
 })();
 
 // ─── Boot ───

@@ -275,19 +275,35 @@ const Router = (() => {
     const container = document.getElementById('main-content');
     if (!container) return;
 
-    container.innerHTML = '';
-    container.className = 'main-content animate-in';
+    // Fade out, swap content, fade in
+    container.classList.add('page-exit');
+    const swap = () => {
+      container.innerHTML = '';
+      container.classList.remove('page-exit');
+      container.className = 'main-content animate-in';
 
-    switch (role) {
-      case ROLES.PATIENT:
-        if (typeof Patient !== 'undefined') Patient.render(page, container);
-        break;
-      case ROLES.AGENT:
-        if (typeof Agent !== 'undefined') Agent.render(page, container);
-        break;
-      case ROLES.ADMIN:
-        if (typeof Admin !== 'undefined') Admin.render(page, container);
-        break;
+      switch (role) {
+        case ROLES.PATIENT:
+          if (typeof Patient !== 'undefined') Patient.render(page, container);
+          break;
+        case ROLES.AGENT:
+          if (typeof Agent !== 'undefined') Agent.render(page, container);
+          break;
+        case ROLES.ADMIN:
+          if (typeof Admin !== 'undefined') Admin.render(page, container);
+          break;
+      }
+
+      // Focus main content for accessibility
+      container.setAttribute('tabindex', '-1');
+      container.focus({ preventScroll: true });
+    };
+
+    // Quick transition: if content is empty (first load), swap immediately
+    if (!container.innerHTML.trim()) {
+      swap();
+    } else {
+      requestAnimationFrame(() => setTimeout(swap, 120));
     }
   }
 

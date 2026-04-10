@@ -420,6 +420,22 @@ function getRoleLabel(role) {
   return labels[role] || role;
 }
 
+// ─── Button Loading State ───
+function setButtonLoading(btn, loading, text) {
+  if (!btn) return;
+  if (loading) {
+    btn._origHTML = btn.innerHTML;
+    btn.innerHTML = `<span class="btn-text">${text || btn.textContent}</span>`;
+    btn.classList.add('loading');
+    btn.disabled = true;
+  } else {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    if (btn._origHTML) btn.innerHTML = btn._origHTML;
+    delete btn._origHTML;
+  }
+}
+
 // ─── Global Error Handler ───
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise]', event.reason);
