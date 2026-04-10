@@ -1746,9 +1746,9 @@ const Patient = (() => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
-      const photoUrl = urlData?.publicUrl ? `${urlData.publicUrl}?t=${Date.now()}` : null;
+      // Get signed URL (bucket is private)
+      const { data: urlData } = await sb.storage.from(STORAGE_BUCKET).createSignedUrl(filePath, 60 * 60 * 24 * 365);
+      const photoUrl = urlData?.signedUrl || null;
 
       // Update profile record
       if (photoUrl) {

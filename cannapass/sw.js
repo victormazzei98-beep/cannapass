@@ -4,7 +4,7 @@
    push notification display
    ═══════════════════════════════════════════ */
 
-const CACHE_NAME = 'cannapass-v3';
+const CACHE_NAME = 'cannapass-v4';
 
 // App shell — local files to cache on install
 const APP_SHELL = [
