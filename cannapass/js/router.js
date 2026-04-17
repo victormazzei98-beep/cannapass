@@ -20,8 +20,9 @@ const Router = (() => {
     ],
     [ROLES.AGENT]: [
       { id: 'scanner', icon: Icons.scanner, label: 'Scanner', section: 'Verificação' },
-      { id: 'busca', icon: Icons.busca, label: 'Busca Manual', section: 'Verificação' },
+      { id: 'busca', icon: Icons.busca, label: 'Busca Avançada', section: 'Verificação' },
       { id: 'historico-agent', icon: Icons.historico, label: 'Histórico', section: 'Registros' },
+      { id: 'agent-stats', icon: Icons.relatorios, label: 'Estatísticas', section: 'Registros' },
       { id: 'guia', icon: Icons.guia, label: 'Guia', section: 'Suporte' }
     ],
     [ROLES.ADMIN]: [
@@ -30,6 +31,7 @@ const Router = (() => {
       { id: 'verificacoes', icon: Icons.verificacoes, label: 'Verificações', section: 'Gestão' },
       { id: 'qr-management', icon: Icons.qrcode, label: 'QR Codes', section: 'Gestão' },
       { id: 'relatorios', icon: Icons.relatorios, label: 'Relatórios', section: 'Sistema' },
+      { id: 'auditoria', icon: Icons.historico, label: 'Auditoria', section: 'Sistema' },
       { id: 'usuarios', icon: Icons.usuarios, label: 'Usuários', section: 'Sistema' }
     ]
   };
@@ -46,12 +48,14 @@ const Router = (() => {
     'scanner': 'Scanner QR',
     'busca': 'Busca Manual',
     'historico-agent': 'Histórico de Verificações',
+    'agent-stats': 'Minhas Estatísticas',
     'guia': 'Guia de Fiscalização',
     'admin-dashboard': 'Dashboard Admin',
     'cadastros': 'Gestão de Cadastros',
     'verificacoes': 'Log de Verificações',
     'qr-management': 'Gerenciar QR Codes',
     'relatorios': 'Relatórios',
+    'auditoria': 'Log de Auditoria',
     'usuarios': 'Usuários'
   };
 
@@ -221,6 +225,35 @@ const Router = (() => {
     newNav.id = 'sidebar-nav';
     newNav.setAttribute('aria-label', 'Menu principal');
     newNav.addEventListener('click', clickHandler);
+
+    // ─── Language Toggle (Agent portal) ───
+    renderLangToggle(role);
+  }
+
+  function renderLangToggle(role) {
+    const topbarRight = document.getElementById('topbar-right');
+    if (!topbarRight || typeof I18n === 'undefined') return;
+
+    // Remove existing lang button
+    document.getElementById('lang-toggle-btn')?.remove();
+
+    // Only show for agent portal
+    if (role !== ROLES.AGENT) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'lang-toggle-btn';
+    btn.className = 'notif-bell-btn';
+    btn.title = I18n.t('lang.toggle');
+    btn.innerHTML = `<span style="font-weight:600;font-size:12px;">${I18n.t('lang.current')}</span>`;
+    btn.addEventListener('click', () => I18n.toggle());
+
+    // Insert before notification bell if it exists, otherwise prepend
+    const notifBtn = document.getElementById('notif-bell-btn');
+    if (notifBtn) {
+      topbarRight.insertBefore(btn, notifBtn);
+    } else {
+      topbarRight.prepend(btn);
+    }
   }
 
   // ─── Update Active Nav Item ───

@@ -14,8 +14,6 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://cannapass.vercel.app">
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="apple-touch-icon" href="favicon.svg">
   <title>Cannapass</title>
 
   <!-- Fonts -->
@@ -34,9 +32,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
-
-  <!-- Skip to content (accessibility) -->
-  <a href="#main-content" class="skip-to-content">Pular para o conteúdo</a>
 
   <!-- ═══ Loading Screen ═══ -->
   <div id="loading-screen" class="loading-screen">
@@ -295,14 +290,14 @@
         </header>
 
         <!-- Main Content (pages rendered here by router) -->
-        <main class="main-content" id="main-content" role="main" aria-live="polite" aria-atomic="false"></main>
+        <main class="main-content" id="main-content" role="main"></main>
       </div>
     </div>
   </div>
 
   <!-- ═══ Public Verification Container (no auth needed) ═══ -->
   <div id="public-container" class="hidden">
-    <div class="public-verification" id="public-verification" role="main" aria-label="Verificação pública"></div>
+    <div class="public-verification" id="public-verification"></div>
   </div>
 
   <!-- ═══ Toast Container ═══ -->
@@ -322,20 +317,27 @@
     </div>
   </div>
 
-  <!-- ═══ CDN Libraries (essential only — Chart.js, Leaflet, jsPDF, QR Scanner lazy-loaded) ═══ -->
+  <!-- ═══ CDN Libraries ═══ -->
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- QR Code Generator (small, used by patient) -->
+  <!-- QR Code Generator -->
   <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <!-- QR Scanner (Camera) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <!-- Leaflet Map -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- Day.js + Plugins -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/pt-br.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script>
   <script>
     dayjs.locale('pt-br');
     dayjs.extend(dayjs_plugin_customParseFormat);
-    dayjs.extend(dayjs_plugin_relativeTime);
   </script>
 
   <!-- ═══ App Scripts (order matters) ═══ -->
@@ -351,54 +353,13 @@
   <script src="js/admin.js"></script>
   <script src="js/notifications.js"></script>
 
-  <!-- ═══ Service Worker Registration + PWA Install Prompt ═══ -->
+  <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .catch(err => console.warn('[SW] Registration failed:', err));
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
     }
-    // PWA Install Prompt
-    let _deferredInstallPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      _deferredInstallPrompt = e;
-      // Show install banner after 5s if not dismissed before
-      setTimeout(() => {
-        if (!_deferredInstallPrompt) return;
-        if (localStorage.getItem('cannapass-pwa-dismissed')) return;
-        const banner = document.createElement('div');
-        banner.id = 'pwa-install-banner';
-        banner.className = 'pwa-install-banner';
-        banner.innerHTML = `
-          <span class="pwa-install-text">Instalar Cannapass no seu dispositivo</span>
-          <div class="pwa-install-actions">
-            <button class="btn btn-primary btn-sm" id="pwa-install-btn">Instalar</button>
-            <button class="btn btn-ghost btn-sm" id="pwa-dismiss-btn">Agora não</button>
-          </div>
-        `;
-        document.body.appendChild(banner);
-        requestAnimationFrame(() => banner.classList.add('visible'));
-        document.getElementById('pwa-install-btn')?.addEventListener('click', async () => {
-          banner.remove();
-          if (_deferredInstallPrompt) {
-            _deferredInstallPrompt.prompt();
-            await _deferredInstallPrompt.userChoice;
-            _deferredInstallPrompt = null;
-          }
-        });
-        document.getElementById('pwa-dismiss-btn')?.addEventListener('click', () => {
-          banner.remove();
-          localStorage.setItem('cannapass-pwa-dismissed', '1');
-          _deferredInstallPrompt = null;
-        });
-      }, 5000);
-    });
-    window.addEventListener('appinstalled', () => {
-      _deferredInstallPrompt = null;
-      document.getElementById('pwa-install-banner')?.remove();
-    });
   </script>
 
 </body>

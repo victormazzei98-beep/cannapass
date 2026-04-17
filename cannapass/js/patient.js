@@ -33,7 +33,6 @@ const Patient = (() => {
       const raw = localStorage.getItem(WIZARD_DRAFT_KEY);
       if (!raw) return null;
       const draft = JSON.parse(raw);
-      // Discard drafts older than 24h
       if (Date.now() - draft.savedAt > 86400000) {
         localStorage.removeItem(WIZARD_DRAFT_KEY);
         return null;
@@ -54,7 +53,6 @@ const Patient = (() => {
       case 'viagem': renderViagem(container); break;
       case 'qrcode': renderQRCode(container); break;
       case 'historico': renderHistorico(container); break;
-      case 'perfil': renderPerfil(container); break;
       default: renderDashboard(container);
     }
   }
@@ -84,21 +82,21 @@ const Patient = (() => {
         <div class="stat-card">
           <div class="stat-icon">${Icons['stat-docs']}</div>
           <div class="stat-info">
-            <div class="stat-value" id="doc-count"><span class="skeleton-text">--</span></div>
+            <div class="stat-value" id="doc-count">—</div>
             <div class="stat-label">Documentos Enviados</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">${Icons['stat-qr']}</div>
           <div class="stat-info">
-            <div class="stat-value" id="qr-count"><span class="skeleton-text">--</span></div>
+            <div class="stat-value" id="qr-count">—</div>
             <div class="stat-label">QR Codes Ativos</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">${Icons['stat-travel']}</div>
           <div class="stat-info">
-            <div class="stat-value" id="trip-count"><span class="skeleton-text">--</span></div>
+            <div class="stat-value" id="trip-count">—</div>
             <div class="stat-label">Viagens Registradas</div>
           </div>
         </div>
@@ -182,45 +180,16 @@ const Patient = (() => {
       </div>
     `;
     loadDashboardStats();
-
-    // Auto-refresh stats every 60s while on dashboard
-    clearInterval(_dashboardRefreshTimer);
-    _dashboardRefreshTimer = setInterval(() => {
-      if (State.get('currentPage') === 'dashboard') loadDashboardStats();
-      else clearInterval(_dashboardRefreshTimer);
-    }, 60000);
-
-    // Pull-to-refresh (mobile touch)
-    let _pullStartY = 0;
-    let _pulling = false;
-    const mainArea = document.querySelector('.main-area');
-    if (mainArea) {
-      mainArea.addEventListener('touchstart', (e) => {
-        if (mainArea.scrollTop === 0) {
-          _pullStartY = e.touches[0].clientY;
-          _pulling = true;
-        }
-      }, { passive: true });
-      mainArea.addEventListener('touchend', (e) => {
-        if (!_pulling) return;
-        _pulling = false;
-        const dy = e.changedTouches[0].clientY - _pullStartY;
-        if (dy > 80 && State.get('currentPage') === 'dashboard') {
-          Toast.info('Atualizando...');
-          loadDashboardStats();
-        }
-      }, { passive: true });
-    }
   }
 
   async function loadDashboardStats() {
     const userId = State.get('user')?.id;
     if (!userId) return;
-    const [docsRes, qrRes, tripsRes] = await fetchWithRetry(() => Promise.all([
+    const [docsRes, qrRes, tripsRes] = await Promise.all([
       sb.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       sb.from('qr_codes').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
       sb.from('travel_data').select('id', { count: 'exact', head: true }).eq('user_id', userId)
-    ]));
+    ]);
     const el = (id) => document.getElementById(id);
     if (el('doc-count')) el('doc-count').textContent = docsRes.count ?? 0;
     if (el('qr-count')) el('qr-count').textContent = qrRes.count ?? 0;
@@ -272,16 +241,6 @@ const Patient = (() => {
         </div></div>
       `;
       return;
-    }
-
-    // Recover draft if available (only for new registrations)
-    if (!patient && !isRenewalMode) {
-      const draft = loadWizardDraft();
-      if (draft && draft.wizardData?.full_name) {
-        wizardData = draft.wizardData;
-        wizardStep = draft.wizardStep || 1;
-        Toast.info('Rascunho recuperado. Continue de onde parou.');
-      }
     }
 
     // Pre-fill wizard data from existing patient record
@@ -421,11 +380,6 @@ const Patient = (() => {
     phoneInput?.addEventListener('input', (e) => {
       e.target.value = maskPhone(e.target.value);
     });
-    // Inline validation
-    const emailInput = document.getElementById('w-email');
-    validateFieldInline(emailInput, validateEmail, 'E-mail inválido');
-    validateFieldInline(phoneInput, v => v.replace(/\D/g, '').length >= 10, 'Telefone incompleto');
-    validateFieldInline(document.getElementById('w-birth'), v => !isFutureDate(v), 'Data no futuro');
     // CPF validation on blur
     cpfInput?.addEventListener('blur', async () => {
       const val = cpfInput.value;
@@ -673,8 +627,6 @@ const Patient = (() => {
         }
         break;
     }
-    // Auto-save draft
-    saveWizardDraft();
   }
 
   // ─── Validate current step ───
@@ -858,7 +810,6 @@ const Patient = (() => {
       State.set('patient', patient);
       uploadedFiles = {};
       wizardStep = 1;
-
       clearWizardDraft();
 
       if (isRenewalMode) {
@@ -868,6 +819,17 @@ const Patient = (() => {
         Toast.success('Cadastro enviado com sucesso! Aguarde a analise.');
       }
       Router.navigate('dashboard');
+
+      // 8. Send confirmation email (non-blocking)
+      try {
+        sb.functions.invoke('send-notification', {
+          body: {
+            type: 'registration_submitted',
+            patient_email: wizardData.email || patient.email,
+            patient_name: patient.full_name
+          }
+        }).catch(err => console.warn('[Patient] Email notification error:', err));
+      } catch (_) { /* non-blocking */ }
 
     } catch (err) {
       console.error('[Patient] Submit error:', err);
@@ -1432,416 +1394,117 @@ const Patient = (() => {
   // ═══════════════════════════════════════
   //  HISTÓRICO
   // ═══════════════════════════════════════
-  let historicoPage = 0;
-  const HISTORICO_PAGE_SIZE = 10;
-
   async function renderHistorico(container) {
-    historicoPage = 0;
     container.innerHTML = `
       <div class="page-header">
-        <h2>Histórico</h2>
-        <p>Viagens anteriores e verificações</p>
+        <h2>Historico</h2>
+        <p>Viagens anteriores e verificacoes dos seus QR Codes</p>
       </div>
+
+      <!-- Viagens -->
+      <div class="card mb-md">
+        <div class="card-header">
+          <h3 class="card-title">Viagens</h3>
+        </div>
+        <div class="card-body" id="history-travels">
+          <div class="flex-center"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Verificacoes -->
       <div class="card">
-        <div class="card-body" id="history-content">
+        <div class="card-header">
+          <h3 class="card-title">Verificacoes dos seus QR Codes</h3>
+          <span class="text-sm text-muted">Quando e onde agentes escanearam seu QR Code</span>
+        </div>
+        <div class="card-body" id="history-verifications">
           <div class="flex-center"><div class="spinner"></div></div>
         </div>
       </div>
     `;
-    await loadHistoricoPage();
-  }
-
-  async function loadHistoricoPage() {
-    const content = document.getElementById('history-content');
-    if (!content) return;
 
     const userId = State.get('user')?.id;
-    const from = historicoPage * HISTORICO_PAGE_SIZE;
-    const to = from + HISTORICO_PAGE_SIZE - 1;
 
-    const { data: travels, error, count } = await sb
-      .from('travel_data')
-      .select('*, qr_codes(*)', { count: 'exact' })
-      .eq('user_id', userId)
-      .order('departure_date', { ascending: false })
-      .range(from, to);
+    // Load both in parallel
+    const [travelsRes, verifsRes] = await Promise.all([
+      sb.from('travel_data').select('*, qr_codes(*)').eq('user_id', userId).order('departure_date', { ascending: false }),
+      sb.from('verifications').select('*, qr_codes!inner(user_id)').eq('qr_codes.user_id', userId).order('created_at', { ascending: false }).limit(50)
+    ]);
 
-    if (error || (!travels?.length && historicoPage === 0)) {
-      content.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">${Icons['empty-clock']}</div>
-          <h4>Nenhum registro</h4>
-          <p>Seu histórico aparecerá aqui após sua primeira viagem.</p>
-        </div>
-      `;
-      return;
-    }
-
-    const totalPages = Math.ceil((count || 0) / HISTORICO_PAGE_SIZE);
-
-    content.innerHTML = `
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Rota</th>
-            <th>Data</th>
-            <th>Transporte</th>
-            <th>QR Code</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${(travels || []).map(t => {
-            const qr = t.qr_codes?.[0];
-            const expired = t.departure_date && !isFutureDate(t.departure_date);
-            return `
-              <tr>
-                <td>${sanitizeHTML(t.origin)} → ${sanitizeHTML(t.destination)}</td>
-                <td>${formatDate(t.departure_date)}</td>
-                <td>${getTransportLabel(t.transport_type)}</td>
-                <td>
-                  ${qr ? `<span class="badge badge-${expired ? 'warning' : 'success'}">${expired ? 'Expirado' : 'Ativo'}</span>` : '<span class="badge badge-neutral">—</span>'}
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-      ${totalPages > 1 ? `
-        <div class="pagination mt-md" style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
-          <button class="pagination-btn" id="hist-prev" ${historicoPage === 0 ? 'disabled' : ''}>&laquo; Anterior</button>
-          <span class="text-sm text-muted" style="padding:8px;">${historicoPage + 1} / ${totalPages}</span>
-          <button class="pagination-btn" id="hist-next" ${historicoPage >= totalPages - 1 ? 'disabled' : ''}>Próxima &raquo;</button>
-        </div>
-      ` : ''}
-    `;
-
-    document.getElementById('hist-prev')?.addEventListener('click', () => {
-      if (historicoPage > 0) { historicoPage--; loadHistoricoPage(); }
-    });
-    document.getElementById('hist-next')?.addEventListener('click', () => {
-      if (historicoPage < totalPages - 1) { historicoPage++; loadHistoricoPage(); }
-    });
-  }
-
-  // ═══════════════════════════════════════
-  //  PERFIL — Editable Profile
-  // ═══════════════════════════════════════
-  function renderPerfil(container) {
-    const profile = State.get('profile');
-    const patient = State.get('patient');
-    const user = State.get('user');
-
-    container.innerHTML = `
-      <div class="page-header">
-        <h2>Meu Perfil</h2>
-        <p>Atualize seus dados de contato e foto sem refazer o cadastro</p>
-      </div>
-
-      <div class="cards-grid">
-        <!-- Photo Card -->
-        <div class="card">
-          <div class="card-header"><h3 class="card-title">${Icons.camera || ''} Foto de Perfil</h3></div>
-          <div class="card-body">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
-              <div id="perfil-avatar" style="width:100px;height:100px;border-radius:50%;background:var(--surface-hover);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:var(--green);border:3px solid var(--green);overflow:hidden;">
-                ${profile?.avatar_url
-                  ? `<img src="${sanitizeHTML(profile.avatar_url)}" style="width:100%;height:100%;object-fit:cover;" alt="Foto">`
-                  : getInitials(profile?.full_name)}
-              </div>
-              <div style="text-align:center;">
-                <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
-                  ${Icons.upload} Alterar Foto
-                  <input type="file" id="perfil-photo-input" accept="image/jpeg,image/png" style="display:none;">
-                </label>
-                <p class="text-xs text-muted mt-sm">JPG ou PNG, máx. 2MB</p>
-              </div>
-              <div id="perfil-photo-status"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Contact Info Card -->
-        <div class="card">
-          <div class="card-header"><h3 class="card-title">${Icons.mail || ''} Dados de Contato</h3></div>
-          <div class="card-body">
-            <div class="form-stack">
-              <div class="form-group">
-                <label class="form-label" for="perfil-name">Nome Completo</label>
-                <input class="form-input" type="text" id="perfil-name" value="${sanitizeHTML(profile?.full_name || '')}" disabled>
-                <span class="form-hint">Para alterar o nome, utilize a Renovação de Cadastro.</span>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="perfil-email">E-mail</label>
-                <input class="form-input" type="email" id="perfil-email" value="${sanitizeHTML(profile?.email || user?.email || '')}">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="perfil-phone">Telefone</label>
-                <input class="form-input" type="text" id="perfil-phone" value="${maskPhone(patient?.phone || profile?.phone || '')}" placeholder="(00) 00000-0000" maxlength="15">
-              </div>
-              <button class="btn btn-primary" id="perfil-save-btn">${Icons.check} Salvar Alterações</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Account Card -->
-      <div class="card mt-md">
-        <div class="card-header"><h3 class="card-title">${Icons.lock} Segurança</h3></div>
-        <div class="card-body">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div>
-              <strong>Senha da conta</strong>
-              <p class="text-sm text-muted">Altere sua senha de acesso ao Cannapass</p>
-            </div>
-            <button class="btn btn-secondary btn-sm" id="perfil-change-pw-btn">${Icons.lock} Alterar Senha</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Phone mask
-    const phoneInput = document.getElementById('perfil-phone');
-    phoneInput?.addEventListener('input', (e) => {
-      e.target.value = maskPhone(e.target.value);
-    });
-
-    // Photo upload handler with preview
-    const photoInput = document.getElementById('perfil-photo-input');
-    photoInput?.addEventListener('change', () => {
-      const file = photoInput.files?.[0];
-      if (!file) return;
-      if (!['image/jpeg', 'image/png'].includes(file.type)) {
-        Toast.error('Formato inválido. Use JPG ou PNG.');
-        photoInput.value = '';
-        return;
-      }
-      if (file.size > 2 * 1024 * 1024) {
-        Toast.error('A foto deve ter no máximo 2MB.');
-        photoInput.value = '';
-        return;
-      }
-      // Show preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const avatarEl = document.getElementById('perfil-avatar');
-        if (avatarEl) avatarEl.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;" alt="Preview">`;
-        const statusEl = document.getElementById('perfil-photo-status');
-        if (statusEl) statusEl.innerHTML = `
-          <div style="display:flex;gap:8px;justify-content:center;">
-            <button class="btn btn-primary btn-sm" id="perfil-photo-confirm">${Icons.check} Confirmar</button>
-            <button class="btn btn-secondary btn-sm" id="perfil-photo-cancel">${Icons.x} Cancelar</button>
+    // ── Render Travels ──
+    const travelsEl = document.getElementById('history-travels');
+    if (travelsEl) {
+      const travels = travelsRes.data || [];
+      if (!travels.length) {
+        travelsEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['empty-clock']}</div>
+            <h4>Nenhuma viagem</h4>
+            <p>Seu historico aparecera aqui apos sua primeira viagem.</p>
           </div>
         `;
-        document.getElementById('perfil-photo-confirm')?.addEventListener('click', () => handleProfilePhotoUpload(photoInput));
-        document.getElementById('perfil-photo-cancel')?.addEventListener('click', () => {
-          photoInput.value = '';
-          statusEl.innerHTML = '';
-          const profile = State.get('profile');
-          if (avatarEl) avatarEl.innerHTML = profile?.avatar_url
-            ? `<img src="${sanitizeHTML(profile.avatar_url)}" style="width:100%;height:100%;object-fit:cover;" alt="Foto">`
-            : getInitials(profile?.full_name);
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // Save contact info
-    document.getElementById('perfil-save-btn')?.addEventListener('click', saveProfileContact);
-
-    // Change password
-    document.getElementById('perfil-change-pw-btn')?.addEventListener('click', () => {
-      if (typeof Auth !== 'undefined' && Auth.showChangePasswordModal) {
-        Auth.showChangePasswordModal();
       } else {
-        Auth.changePassword();
+        travelsEl.innerHTML = `
+          <table class="table">
+            <thead><tr><th>Rota</th><th>Data</th><th>Transporte</th><th>QR Code</th></tr></thead>
+            <tbody>
+              ${travels.map(t => {
+                const qr = Array.isArray(t.qr_codes) ? t.qr_codes[0] : t.qr_codes;
+                const expired = t.departure_date && !isFutureDate(t.departure_date);
+                return `<tr>
+                  <td>${sanitizeHTML(t.origin)} &rarr; ${sanitizeHTML(t.destination)}</td>
+                  <td>${formatDate(t.departure_date)}</td>
+                  <td>${getTransportLabel(t.transport_type)}</td>
+                  <td>${qr ? `<span class="badge badge-${expired ? 'warning' : 'success'}">${expired ? 'Expirado' : 'Ativo'}</span>` : '<span class="badge badge-neutral">&mdash;</span>'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
       }
-    });
-
-    // ─── Unsaved changes detection ───
-    const origEmail = document.getElementById('perfil-email')?.value || '';
-    const origPhone = document.getElementById('perfil-phone')?.value || '';
-    const saveBtn = document.getElementById('perfil-save-btn');
-
-    function checkDirty() {
-      const curEmail = document.getElementById('perfil-email')?.value || '';
-      const curPhone = document.getElementById('perfil-phone')?.value || '';
-      const isDirty = curEmail !== origEmail || curPhone !== origPhone;
-      if (saveBtn) {
-        saveBtn.style.opacity = isDirty ? '1' : '0.6';
-        saveBtn.title = isDirty ? 'Salvar alterações pendentes' : '';
-      }
-      return isDirty;
     }
 
-    document.getElementById('perfil-email')?.addEventListener('input', checkDirty);
-    document.getElementById('perfil-phone')?.addEventListener('input', checkDirty);
-
-    // Warn on navigation if dirty
-    const _navWarn = () => {
-      if (checkDirty()) {
-        const leave = confirm('Você tem alterações não salvas. Deseja sair mesmo assim?');
-        if (!leave) {
-          // Re-set hash to perfil
-          window.removeEventListener('hashchange', _navWarn);
-          window.location.hash = 'perfil';
-          setTimeout(() => window.addEventListener('hashchange', _navWarn, { once: true }), 50);
-          return;
-        }
-      }
-      window.removeEventListener('hashchange', _navWarn);
-    };
-    window.addEventListener('hashchange', _navWarn, { once: true });
-  }
-
-  // ─── Compress image to max dimension using canvas ───
-  function compressImage(file, maxSize = 500) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width <= maxSize && height <= maxSize) {
-          resolve(file); // already small enough
-          return;
-        }
-        // Scale down proportionally
-        if (width > height) {
-          height = Math.round(height * (maxSize / width));
-          width = maxSize;
-        } else {
-          width = Math.round(width * (maxSize / height));
-          height = maxSize;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          resolve(blob || file);
-        }, 'image/jpeg', 0.85);
-      };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
-    });
-  }
-
-  async function handleProfilePhotoUpload(input) {
-    const file = input.files?.[0];
-    if (!file) return;
-
-    const statusEl = document.getElementById('perfil-photo-status');
-    const userId = State.get('user')?.id;
-    if (!userId) return;
-
-    if (statusEl) statusEl.innerHTML = '<p class="text-muted text-sm">Comprimindo e enviando...</p>';
-
-    try {
-      // Compress before upload
-      const compressed = await compressImage(file, 500);
-      const filePath = `${userId}/profile_photo.jpg`;
-
-      // Upload (upsert: true to replace existing)
-      const { error: uploadError } = await sb.storage
-        .from(STORAGE_BUCKET)
-        .upload(filePath, compressed, { contentType: 'image/jpeg', upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get signed URL (bucket is private)
-      const { data: urlData } = await sb.storage.from(STORAGE_BUCKET).createSignedUrl(filePath, 60 * 60 * 24 * 365);
-      const photoUrl = urlData?.signedUrl || null;
-
-      // Update profile record
-      if (photoUrl) {
-        const { error: updateError } = await sb.from('profiles')
-          .update({ avatar_url: photoUrl })
-          .eq('id', userId);
-
-        if (updateError) throw updateError;
-
-        // Update local state
-        const profile = State.get('profile');
-        if (profile) {
-          profile.avatar_url = photoUrl;
-          State.set('profile', profile);
-        }
-
-        // Update avatar display
-        const avatarEl = document.getElementById('perfil-avatar');
-        if (avatarEl) {
-          avatarEl.innerHTML = `<img src="${sanitizeHTML(photoUrl)}" style="width:100%;height:100%;object-fit:cover;" alt="Foto">`;
-        }
-
-        Toast.success('Foto atualizada com sucesso!');
-      }
-    } catch (err) {
-      console.error('[Patient] Photo upload error:', err);
-      Toast.error('Erro ao enviar foto. Tente novamente.');
-    } finally {
-      if (statusEl) statusEl.innerHTML = '';
-      input.value = '';
-    }
-  }
-
-  async function saveProfileContact() {
-    const btn = document.getElementById('perfil-save-btn');
-    const email = document.getElementById('perfil-email')?.value?.trim();
-    const phone = document.getElementById('perfil-phone')?.value?.replace(/\D/g, '');
-
-    if (!email) { Toast.warning('Informe o e-mail.'); return; }
-    if (phone && phone.length < 10) { Toast.warning('Telefone inválido.'); return; }
-
-    const userId = State.get('user')?.id;
-    if (!userId) return;
-
-    setButtonLoading(btn, true, 'Salvando...');
-
-    try {
-      // Update profiles table (email only — profiles has no phone column)
-      const { error: profileError } = await sb.from('profiles')
-        .update({ email })
-        .eq('id', userId);
-
-      if (profileError) throw profileError;
-
-      // Update patients table (email + phone)
-      const patient = State.get('patient');
-      if (patient?.id) {
-        const { error: patientError } = await sb.from('patients')
-          .update({ email, phone })
-          .eq('id', patient.id);
-
-        if (patientError) console.warn('[Patient] Patient table update warning:', patientError);
-
-        patient.email = email;
-        patient.phone = phone;
-        State.set('patient', patient);
-      }
-
-      // Update profile local state
-      const prevEmail = State.get('profile')?.email;
-      const profile = State.get('profile');
-      if (profile) {
-        profile.email = email;
-        State.set('profile', profile);
-      }
-
-      // If email changed, send confirmation and inform
-      if (prevEmail && prevEmail !== email) {
-        Toast.success('Dados atualizados! Enviando confirmação para o novo e-mail...');
-        // Fire-and-forget: send confirmation email via Edge Function
-        sb.functions.invoke('confirm-email-change', {
-          body: { newEmail: email }
-        }).then(({ error }) => {
-          if (error) console.warn('[Patient] Email confirmation send failed:', error);
-        });
+    // ── Render Verifications ──
+    const verifsEl = document.getElementById('history-verifications');
+    if (verifsEl) {
+      const verifs = verifsRes.data || [];
+      if (verifsRes.error || !verifs.length) {
+        verifsEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['stat-verified'] || Icons.success}</div>
+            <h4>Nenhuma verificacao</h4>
+            <p>Quando um agente escanear seu QR Code, o registro aparecera aqui.</p>
+          </div>
+        `;
       } else {
-        Toast.success('Dados atualizados com sucesso!');
+        const resultIcons = {
+          valid: `<span class="badge badge-success">Valido</span>`,
+          invalid: `<span class="badge badge-danger">Invalido</span>`,
+          expired: `<span class="badge badge-warning">Expirado</span>`,
+          suspicious: `<span class="badge badge-danger">Suspeito</span>`
+        };
+
+        verifsEl.innerHTML = `
+          <div class="text-sm text-muted mb-sm">${verifs.length} verificacao(oes) encontrada(s)</div>
+          <table class="table">
+            <thead><tr><th>Data/Hora</th><th>Agente</th><th>Local</th><th>Resultado</th></tr></thead>
+            <tbody>
+              ${verifs.map(v => `<tr>
+                <td>${formatDateTime(v.created_at)}</td>
+                <td>
+                  <strong>${sanitizeHTML(v.agent_name || 'Agente')}</strong>
+                  ${v.agent_organization ? `<br><span class="text-sm text-muted">${sanitizeHTML(v.agent_organization)}</span>` : ''}
+                </td>
+                <td>
+                  ${sanitizeHTML(v.agent_location || '—')}
+                  ${v.latitude && v.longitude ? `<br><span class="text-sm text-muted">${v.latitude.toFixed(4)}, ${v.longitude.toFixed(4)}</span>` : ''}
+                </td>
+                <td>${resultIcons[v.result] || v.result}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        `;
       }
-    } catch (err) {
-      console.error('[Patient] Profile save error:', err);
-      Toast.error('Erro ao salvar. Tente novamente.');
-    } finally {
-      setButtonLoading(btn, false);
     }
   }
 

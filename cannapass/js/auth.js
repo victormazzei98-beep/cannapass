@@ -5,27 +5,15 @@
 
 const Auth = (() => {
   let _isRecoveryFlow = false;
-  let _isPublicRoute = false;
-
-  function isPublicHash(hash) {
-    return hash.startsWith(PUBLIC_VERIFY_HASH) || hash === '#/verificar';
-  }
 
   // ─── Initialize Auth ───
   async function init() {
-    // Public verification routes — bypass auth entirely
+    // Public verification route — bypass auth entirely
     const hash = window.location.hash || '';
     if (hash.startsWith(PUBLIC_VERIFY_HASH)) {
-      _isPublicRoute = true;
       hideLoading();
       const token = hash.slice(PUBLIC_VERIFY_HASH.length);
       Router.showPublicVerification(token);
-      return;
-    }
-    if (hash === '#/verificar') {
-      _isPublicRoute = true;
-      hideLoading();
-      Router.showPublicVerificationSearch();
       return;
     }
 
@@ -36,11 +24,12 @@ const Auth = (() => {
     const hashParams = window.location.hash;
     if (hashParams.includes('type=recovery') || hashParams.includes('type%3Drecovery')) {
       _isRecoveryFlow = true;
+      console.log('[Auth] Recovery flow detected from URL hash');
     }
 
     // Listen for auth state changes
     sb.auth.onAuthStateChange(async (event, session) => {
-      // Auth state change handler
+      console.log('[Auth] State change:', event, '_isRecoveryFlow:', _isRecoveryFlow);
       try {
         if (event === 'PASSWORD_RECOVERY') {
           // User clicked the reset link in their email — highest priority
@@ -50,12 +39,11 @@ const Auth = (() => {
           showAuthPanel('auth-reset');
         } else if (event === 'SIGNED_IN' && session && _isRecoveryFlow) {
           // Ignore SIGNED_IN during recovery flow — wait for PASSWORD_RECOVERY event
-          // Ignore SIGNED_IN during recovery flow
+          console.log('[Auth] Ignoring SIGNED_IN during recovery flow');
           State.set('user', session.user);
         } else if (event === 'SIGNED_IN' && session) {
           await loadUserData(session.user);
           hideLoading();
-          startSessionMonitor();
           const profile = State.get('profile');
           if (isAdminWithPortalChoice(profile) && !State.get('activeRole')) {
             showPortalSelect();
@@ -66,7 +54,6 @@ const Auth = (() => {
           }
         } else if (event === 'SIGNED_OUT') {
           _isRecoveryFlow = false;
-          stopSessionMonitor();
           if (typeof Notifications !== 'undefined') Notifications.destroy();
           State.reset();
           hideLoading();
@@ -94,14 +81,13 @@ const Auth = (() => {
       if (_isRecoveryFlow) {
         // During recovery, don't auto-navigate to dashboard
         // The PASSWORD_RECOVERY event will handle showing the reset form
-        // Skipping auto-login for recovery flow
+        console.log('[Auth] Skipping auto-login for recovery flow');
         hideLoading();
       } else {
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
           await loadUserData(session.user);
           hideLoading();
-          startSessionMonitor();
           const prof = State.get('profile');
           if (isAdminWithPortalChoice(prof) && !State.get('activeRole')) {
             showPortalSelect();
@@ -679,43 +665,6 @@ const Auth = (() => {
       document.getElementById('sidebar')?.classList.remove('open');
       document.getElementById('sidebar-overlay')?.classList.remove('open');
     });
-
-    // Touch swipe to open/close sidebar
-    let _touchStartX = 0;
-    let _touchStartY = 0;
-    document.addEventListener('touchstart', (e) => {
-      _touchStartX = e.touches[0].clientX;
-      _touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    document.addEventListener('touchend', (e) => {
-      const dx = e.changedTouches[0].clientX - _touchStartX;
-      const dy = Math.abs(e.changedTouches[0].clientY - _touchStartY);
-      if (dy > 80) return; // ignore vertical swipes
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebar-overlay');
-      if (dx > 60 && _touchStartX < 40) {
-        // Swipe right from left edge → open
-        sidebar?.classList.add('open');
-        overlay?.classList.add('open');
-      } else if (dx < -60 && sidebar?.classList.contains('open')) {
-        // Swipe left while open → close
-        sidebar?.classList.remove('open');
-        overlay?.classList.remove('open');
-      }
-    }, { passive: true });
-
-    // Keyboard: Escape closes modals, sidebar, notification panel
-    document.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape') return;
-      // Close notification panel
-      document.querySelector('.notif-panel.open')?.classList.remove('open');
-      // Close mobile sidebar
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar?.classList.contains('open')) {
-        sidebar.classList.remove('open');
-        document.getElementById('sidebar-overlay')?.classList.remove('open');
-      }
-    });
   }
 
   // ─── Toggle Login/Signup Mode ───
@@ -771,35 +720,7 @@ const Auth = (() => {
     showAuthPanel('auth-login');
   }
 
-  // ─── Session Timeout Warning ───
-  let _sessionCheckTimer = null;
-
-  function startSessionMonitor() {
-    clearInterval(_sessionCheckTimer);
-    _sessionCheckTimer = setInterval(async () => {
-      try {
-        const { data: { session } } = await sb.auth.getSession();
-        if (!session) return;
-        const expiresAt = session.expires_at; // Unix timestamp in seconds
-        if (!expiresAt) return;
-        const remaining = expiresAt - Math.floor(Date.now() / 1000);
-        if (remaining < 300 && remaining > 240) {
-          // Warn ~5 min before expiry (only once in the 60s window)
-          Toast.warning('Sua sessão expira em breve. Salve seu trabalho.');
-        } else if (remaining <= 0) {
-          clearInterval(_sessionCheckTimer);
-          Toast.error('Sessão expirada. Faça login novamente.');
-          logout();
-        }
-      } catch { /* ignore */ }
-    }, 60000);
-  }
-
-  function stopSessionMonitor() {
-    clearInterval(_sessionCheckTimer);
-  }
-
-  return { init, logout, loadUserData, changePassword: showChangePasswordModal, showPortalSelect, enterPortal, startSessionMonitor, stopSessionMonitor };
+  return { init, logout, loadUserData, changePassword: showChangePasswordModal, showPortalSelect, enterPortal };
 })();
 
 // ─── Boot ───
