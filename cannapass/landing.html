@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cannapass — Transporte Legal de Cannabis Medicinal</title>
+  <meta name="description" content="Plataforma digital brasileira para rastreamento e fiscalização do transporte legal de cannabis medicinal. QR Codes verificáveis, conforme ANVISA.">
+  <meta name="theme-color" content="#070c09">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #070c09;
+      --surface: #111a15;
+      --surface-2: #182420;
+      --green: #3dd68c;
+      --green-dim: #2a9e65;
+      --green-glow: rgba(61, 214, 140, 0.15);
+      --green-glow-strong: rgba(61, 214, 140, 0.25);
+      --text: #e8f2ec;
+      --text-muted: #6a9478;
+      --text-dim: #4a7058;
+      --border: rgba(106, 148, 120, 0.15);
+      --radius: 12px;
+      --radius-lg: 20px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      --shadow-green: 0 4px 32px rgba(61, 214, 140, 0.12);
+      --font-heading: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --nav-h: 72px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-heading);
+      line-height: 1.15;
+      font-weight: 700;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    ul { list-style: none; }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ========== ANIMATIONS ========== */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .fade-in-delay-1 { transition-delay: 0.1s; }
+    .fade-in-delay-2 { transition-delay: 0.2s; }
+    .fade-in-delay-3 { transition-delay: 0.3s; }
+    .fade-in-delay-4 { transition-delay: 0.4s; }
+
+    /* ========== NAVBAR ========== */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--nav-h);
+      background: rgba(7, 12, 9, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      transition: box-shadow 0.3s ease;
+    }
+    .navbar.scrolled {
+      box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+    }
+    .navbar .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--green);
+    }
+    .nav-logo svg { flex-shrink: 0; }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .nav-links a {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.25s ease;
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px; left: 0;
+      width: 0; height: 2px;
+      background: var(--green);
+      transition: width 0.25s ease;
+      border-radius: 1px;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      background: var(--green);
+      color: var(--bg);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-radius: 50px;
+      transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .nav-cta:hover {
+      background: #4ee89e;
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-green);
+    }
+
+    /* Mobile burger */
+    .nav-burger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px;
+    }
+    .nav-burger span {
+      display: block;
+      width: 24px;
+      height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .nav-burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-burger.open span:nth-child(2) { opacity: 0; }
+    .nav-burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    @media (max-width: 768px) {
+      .nav-burger { display: flex; }
+      .nav-links {
+        position: fixed;
+        top: var(--nav-h); left: 0; right: 0;
+        background: rgba(7, 12, 9, 0.97);
+        backdrop-filter: blur(16px);
+        flex-direction: column;
+        padding: 32px 24px;
+        gap: 24px;
+        transform: translateY(-120%);
+        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-links.open {
+        transform: translateY(0);
+      }
+      .nav-links a { font-size: 1.05rem; }
+    }
+
+    /* ========== HERO ========== */
+    .hero {
+      padding: calc(var(--nav-h) + 80px) 0 60px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, var(--green-glow) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .hero .container { position: relative; z-index: 1; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: var(--green-glow);
+      border: 1px solid rgba(61, 214, 140, 0.2);
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--green);
+      margin-bottom: 32px;
+    }
+    .hero-badge svg { flex-shrink: 0; }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5.5vw, 4rem);
+      max-width: 850px;
+      margin: 0 auto 24px;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text) 0%, var(--green) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-subtitle {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 64px;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 36px;
+      background: var(--green);
+      color: var(--bg);
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1.05rem;
+      border-radius: 50px;
+      transition: all 0.25s ease;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      background: #4ee89e;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px rgba(61, 214, 140, 0.25);
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 36px;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 1.05rem;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-glow);
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .stat-item {
+      background: var(--surface);
+      padding: 28px 20px;
+      text-align: center;
+    }
+    .stat-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px; height: 44px;
+      background: var(--green-glow);
+      border-radius: 12px;
+      margin: 0 auto 12px;
+      color: var(--green);
+    }
+    .stat-label {
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .stat-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    @media (max-width: 520px) {
+      .stats-bar { grid-template-columns: 1fr; }
+      .hero { padding-top: calc(var(--nav-h) + 48px); }
+    }
+
+    /* ========== SECTION SHARED ========== */
+    section {
+      padding: 100px 0;
+    }
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .section-label::before {
+      content: '';
+      width: 24px; height: 2px;
+      background: var(--green);
+      border-radius: 1px;
+    }
+    .section-title {
+      font-size: clamp(1.75rem, 4vw, 2.75rem);
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+    .section-header .section-desc {
+      margin: 0 auto;
+    }
+
+    /* ========== PROBLEM ========== */
+    .problem { background: var(--bg); }
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .problem-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 28px;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .problem-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .problem-icon {
+      width: 52px; height: 52px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      color: #ef4444;
+    }
+    .problem-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 10px;
+    }
+    .problem-card p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 768px) {
+      .problem-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ========== SOLUTION ========== */
+    .solution {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .solution-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .solution-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 28px;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .solution-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(61, 214, 140, 0.3);
+    }
+    .solution-icon {
+      width: 52px; height: 52px;
+      background: var(--green-glow);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      color: var(--green);
+    }
+    .solution-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 10px;
+    }
+    .solution-card p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 768px) {
+      .solution-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ========== PORTALS ========== */
+    .portals { background: var(--bg); }
+    .portals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+    .portal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--green);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .portal-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(61, 214, 140, 0.25);
+      box-shadow: var(--shadow-green);
+    }
+    .portal-card:hover::before { opacity: 1; }
+    .portal-icon {
+      width: 60px; height: 60px;
+      background: var(--green-glow);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      color: var(--green);
+    }
+    .portal-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
+    .portal-card .portal-role {
+      font-size: 0.85rem;
+      color: var(--green);
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+    .portal-features {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .portal-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .portal-features li svg {
+      flex-shrink: 0;
+      margin-top: 3px;
+      color: var(--green);
+    }
+
+    @media (max-width: 768px) {
+      .portals-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ========== HOW IT WORKS ========== */
+    .how-it-works {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 700px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .steps::before {
+      content: '';
+      position: absolute;
+      left: 28px;
+      top: 28px;
+      bottom: 28px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--green), var(--green-dim), transparent);
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+      padding: 24px 0;
+      position: relative;
+    }
+    .step-number {
+      width: 56px; height: 56px;
+      min-width: 56px;
+      background: var(--bg);
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--green);
+      z-index: 1;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    .step:hover .step-number {
+      background: var(--green);
+      color: var(--bg);
+    }
+    .step-content h3 {
+      font-size: 1.15rem;
+      margin-bottom: 6px;
+    }
+    .step-content p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 520px) {
+      .steps::before { left: 20px; }
+      .step-number { width: 42px; height: 42px; min-width: 42px; font-size: 1rem; }
+      .step { gap: 16px; }
+    }
+
+    /* ========== SECURITY ========== */
+    .security { background: var(--bg); }
+    .security-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    .security-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .security-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(61, 214, 140, 0.25);
+    }
+    .security-icon {
+      width: 48px; height: 48px;
+      min-width: 48px;
+      background: var(--green-glow);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green);
+    }
+    .security-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .security-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 600px) {
+      .security-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ========== CTA SECTION ========== */
+    .cta-section {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 100px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      bottom: -300px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 600px;
+      background: radial-gradient(ellipse, var(--green-glow-strong) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-section .container { position: relative; z-index: 1; }
+    .cta-section h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      margin-bottom: 16px;
+    }
+    .cta-section p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 520px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    /* ========== FOOTER ========== */
+    .footer {
+      padding: 48px 0;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .footer .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--green);
+    }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .footer-links a {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      transition: color 0.25s ease;
+    }
+    .footer-links a:hover { color: var(--green); }
+    .footer-copy {
+      width: 100%;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-top: 16px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 600px) {
+      .footer .container {
+        flex-direction: column;
+        text-align: center;
+      }
+      .footer-links { justify-content: center; }
+    }
+
+    /* ========== MISC ========== */
+    ::selection {
+      background: rgba(61, 214, 140, 0.3);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== NAVBAR ===== -->
+  <nav class="navbar" id="navbar" role="navigation" aria-label="Navegacao principal">
+    <div class="container">
+      <a href="#" class="nav-logo" aria-label="Cannapass - Pagina inicial">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 2C16 2 20 8 20 14C20 16 19 18 18 19C22 17 26 14 28 10C28 10 28 18 22 23C20.5 24.3 18.5 25 16 25C13.5 25 11.5 24.3 10 23C4 18 4 10 4 10C6 14 10 17 14 19C13 18 12 16 12 14C12 8 16 2 16 2Z" fill="currentColor"/>
+          <path d="M16 25C16 25 16 30 16 30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 28H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Cannapass
+      </a>
+
+      <button class="nav-burger" id="navBurger" aria-label="Abrir menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="nav-links" id="navLinks" role="menubar">
+        <a href="#sobre" role="menuitem">Sobre</a>
+        <a href="#como-funciona" role="menuitem">Como Funciona</a>
+        <a href="#portais" role="menuitem">Portais</a>
+        <a href="#seguranca" role="menuitem">Seguran&ccedil;a</a>
+        <a href="/index.html" class="nav-cta" role="menuitem">
+          Acessar Plataforma
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero" id="sobre">
+    <div class="container">
+      <div class="fade-in">
+        <div class="hero-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Plataforma regulamentada conforme ANVISA
+        </div>
+      </div>
+
+      <h1 class="fade-in fade-in-delay-1">Transporte Legal de Cannabis Medicinal &mdash; Seguro e Verific&aacute;vel</h1>
+
+      <p class="hero-subtitle fade-in fade-in-delay-2">
+        Digitalize toda a documenta&ccedil;&atilde;o necess&aacute;ria para o transporte legal de cannabis medicinal no Brasil.
+        QR Codes verific&aacute;veis em tempo real por agentes fiscalizadores.
+      </p>
+
+      <div class="hero-actions fade-in fade-in-delay-3">
+        <a href="/index.html#signup" class="btn-primary">
+          Criar Conta Gr&aacute;tis
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a href="#como-funciona" class="btn-secondary">
+          Como Funciona
+        </a>
+      </div>
+
+      <div class="stats-bar fade-in fade-in-delay-4">
+        <div class="stat-item">
+          <div class="stat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div class="stat-label">100% Digital</div>
+          <div class="stat-sub">Sem papel, sem burocracia</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7z"/><path d="M14 7h3v3h-3z"/><path d="M7 14h3v3H7z"/><path d="M14 14h.01"/></svg>
+          </div>
+          <div class="stat-label">QR Code Verific&aacute;vel</div>
+          <div class="stat-sub">Consulta instant&acirc;nea</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div class="stat-label">Conforme ANVISA</div>
+          <div class="stat-sub">RDC n&ordm; 327/2019</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROBLEM ===== -->
+  <section class="problem" id="problema">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">O Problema</div>
+        <h2 class="section-title">Pacientes enfrentam riscos di&aacute;rios</h2>
+        <p class="section-desc">
+          Quem transporta cannabis medicinal no Brasil ainda depende de documentos em papel e enfrenta inseguran&ccedil;a jur&iacute;dica constante.
+        </p>
+      </div>
+
+      <div class="problem-grid">
+        <div class="problem-card fade-in fade-in-delay-1">
+          <div class="problem-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <h3>Risco de Apreens&atilde;o</h3>
+          <p>Pacientes t&ecirc;m medica&ccedil;&atilde;o apreendida em aeroportos e rodovi&aacute;rias por falta de documenta&ccedil;&atilde;o padronizada e verific&aacute;vel.</p>
+        </div>
+
+        <div class="problem-card fade-in fade-in-delay-2">
+          <div class="problem-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </div>
+          <h3>Documentos em Papel</h3>
+          <p>Prescri&ccedil;&otilde;es, laudos e autoriza&ccedil;&otilde;es em papel s&atilde;o f&aacute;ceis de perder, danificar e dif&iacute;ceis de verificar na hora.</p>
+        </div>
+
+        <div class="problem-card fade-in fade-in-delay-3">
+          <div class="problem-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <h3>Inseguran&ccedil;a Jur&iacute;dica</h3>
+          <p>A falta de um sistema unificado gera incerteza para pacientes e dificuldade de verifica&ccedil;&atilde;o para agentes de fiscaliza&ccedil;&atilde;o.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SOLUTION ===== -->
+  <section class="solution" id="solucao">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">A Solu&ccedil;&atilde;o</div>
+        <h2 class="section-title">Cannapass digitaliza tudo para voc&ecirc;</h2>
+        <p class="section-desc">
+          Uma plataforma completa que conecta pacientes, agentes fiscalizadores e administradores em um &uacute;nico ecossistema digital.
+        </p>
+      </div>
+
+      <div class="solution-grid">
+        <div class="solution-card fade-in fade-in-delay-1">
+          <div class="solution-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7z"/><path d="M14 7h3v3h-3z"/><path d="M7 14h3v3H7z"/><path d="M14 14h.01"/></svg>
+          </div>
+          <h3>QR Code por Viagem</h3>
+          <p>Cada viagem gera um QR Code &uacute;nico contendo todos os dados necess&aacute;rios para verifica&ccedil;&atilde;o instant&acirc;nea e segura.</p>
+        </div>
+
+        <div class="solution-card fade-in fade-in-delay-2">
+          <div class="solution-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><path d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9z"/></svg>
+          </div>
+          <h3>Verifica&ccedil;&atilde;o em Tempo Real</h3>
+          <p>Agentes fiscalizadores escaneiam o QR Code e obt&ecirc;m valida&ccedil;&atilde;o instant&acirc;nea de toda a documenta&ccedil;&atilde;o do paciente.</p>
+        </div>
+
+        <div class="solution-card fade-in fade-in-delay-3">
+          <div class="solution-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Conformidade Total</h3>
+          <p>Plataforma desenvolvida em conformidade com a ANVISA RDC 327/2019, Lei 11.343/2006 e LGPD para prote&ccedil;&atilde;o de dados pessoais.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PORTALS ===== -->
+  <section class="portals" id="portais">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Portais</div>
+        <h2 class="section-title">Tr&ecirc;s Portais, Uma Plataforma</h2>
+        <p class="section-desc">
+          Cada perfil de usu&aacute;rio tem acesso a ferramentas espec&iacute;ficas para sua necessidade, integradas em um &uacute;nico sistema.
+        </p>
+      </div>
+
+      <div class="portals-grid">
+        <!-- Paciente -->
+        <div class="portal-card fade-in fade-in-delay-1">
+          <div class="portal-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <h3>Portal do Paciente</h3>
+          <p class="portal-role">Cadastro e Documenta&ccedil;&atilde;o</p>
+          <ul class="portal-features">
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Cadastro completo em 5 etapas guiadas
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Upload seguro de documentos (RG, prescri&ccedil;&atilde;o)
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              QR Code &uacute;nico gerado por viagem
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Hist&oacute;rico de verifica&ccedil;&otilde;es e viagens
+            </li>
+          </ul>
+        </div>
+
+        <!-- Agente -->
+        <div class="portal-card fade-in fade-in-delay-2">
+          <div class="portal-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <h3>Portal do Agente</h3>
+          <p class="portal-role">Fiscaliza&ccedil;&atilde;o e Verifica&ccedil;&atilde;o</p>
+          <ul class="portal-features">
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Scanner de QR Code integrado com c&acirc;mera
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Verifica&ccedil;&atilde;o instant&acirc;nea de documenta&ccedil;&atilde;o
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Busca manual por CPF ou protocolo
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Guia de procedimentos atualizado
+            </li>
+          </ul>
+        </div>
+
+        <!-- Admin -->
+        <div class="portal-card fade-in fade-in-delay-3">
+          <div class="portal-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <h3>Portal Admin</h3>
+          <p class="portal-role">Gest&atilde;o e Relat&oacute;rios</p>
+          <ul class="portal-features">
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Dashboard com estat&iacute;sticas em tempo real
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Gest&atilde;o de cadastros de pacientes
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Hist&oacute;rico completo de verifica&ccedil;&otilde;es
+            </li>
+            <li>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Gera&ccedil;&atilde;o de relat&oacute;rios e exporta&ccedil;&atilde;o
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HOW IT WORKS ===== -->
+  <section class="how-it-works" id="como-funciona">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Passo a Passo</div>
+        <h2 class="section-title">Como Funciona</h2>
+        <p class="section-desc">
+          Do cadastro &agrave; verifica&ccedil;&atilde;o, tudo acontece de forma digital, r&aacute;pida e segura.
+        </p>
+      </div>
+
+      <div class="steps">
+        <div class="step fade-in">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Cadastro na Plataforma</h3>
+            <p>Paciente cria sua conta e preenche os dados pessoais, informa&ccedil;&otilde;es m&eacute;dicas e via de obten&ccedil;&atilde;o (farm&aacute;cia/associa&ccedil;&atilde;o ou habeas corpus).</p>
+          </div>
+        </div>
+        <div class="step fade-in fade-in-delay-1">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Upload de Documentos</h3>
+            <p>Envie fotos do RG, prescri&ccedil;&atilde;o m&eacute;dica, autoriza&ccedil;&atilde;o da ANVISA ou decis&atilde;o judicial. Tudo armazenado de forma criptografada.</p>
+          </div>
+        </div>
+        <div class="step fade-in fade-in-delay-2">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>QR Code Gerado</h3>
+            <p>Ap&oacute;s valida&ccedil;&atilde;o, a plataforma gera um QR Code &uacute;nico por viagem contendo todos os dados necess&aacute;rios para fiscaliza&ccedil;&atilde;o.</p>
+          </div>
+        </div>
+        <div class="step fade-in fade-in-delay-3">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Agente Escaneia</h3>
+            <p>Em aeroportos, rodovi&aacute;rias ou blitzes, o agente fiscalizador escaneia o QR Code com a c&acirc;mera do celular.</p>
+          </div>
+        </div>
+        <div class="step fade-in fade-in-delay-4">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h3>Verifica&ccedil;&atilde;o Instant&acirc;nea</h3>
+            <p>O sistema exibe em tempo real todos os documentos, validade e status do paciente. Verifica&ccedil;&atilde;o conclu&iacute;da em segundos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECURITY ===== -->
+  <section class="security" id="seguranca">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Prote&ccedil;&atilde;o</div>
+        <h2 class="section-title">Seguran&ccedil;a e Conformidade</h2>
+        <p class="section-desc">
+          Seus dados est&atilde;o protegidos com as melhores pr&aacute;ticas de seguran&ccedil;a e em total conformidade com a legisla&ccedil;&atilde;o brasileira.
+        </p>
+      </div>
+
+      <div class="security-grid">
+        <div class="security-card fade-in">
+          <div class="security-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <h3>LGPD Compliant</h3>
+            <p>Tratamento de dados pessoais em total conformidade com a Lei Geral de Prote&ccedil;&atilde;o de Dados (Lei 13.709/2018).</p>
+          </div>
+        </div>
+
+        <div class="security-card fade-in fade-in-delay-1">
+          <div class="security-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <h3>Row Level Security</h3>
+            <p>Pol&iacute;ticas RLS no Supabase garantem que cada usu&aacute;rio acesse apenas seus pr&oacute;prios dados. Isolamento total.</p>
+          </div>
+        </div>
+
+        <div class="security-card fade-in fade-in-delay-2">
+          <div class="security-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div>
+            <h3>Armazenamento Criptografado</h3>
+            <p>Documentos armazenados em buckets privados com URLs assinadas e criptografia em repouso e em tr&acirc;nsito.</p>
+          </div>
+        </div>
+
+        <div class="security-card fade-in fade-in-delay-3">
+          <div class="security-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><path d="M21 12A9 9 0 1 1 12 3a9 9 0 0 1 9 9z"/></svg>
+          </div>
+          <div>
+            <h3>ANVISA RDC 327/2019</h3>
+            <p>Plataforma desenvolvida em conformidade com a resolu&ccedil;&atilde;o que regulamenta produtos de cannabis para fins medicinais.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="cta-section" id="cta">
+    <div class="container">
+      <div class="fade-in">
+        <div class="section-label" style="justify-content: center;">Comece Agora</div>
+        <h2>Proteja seu direito ao transporte legal</h2>
+        <p>
+          Cadastre-se gratuitamente e tenha toda a documenta&ccedil;&atilde;o necess&aacute;ria para transportar sua cannabis medicinal com seguran&ccedil;a e respaldo legal.
+        </p>
+        <a href="/index.html#signup" class="btn-primary">
+          Criar Conta Gr&aacute;tis
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="container">
+      <a href="#" class="footer-logo" aria-label="Cannapass">
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 2C16 2 20 8 20 14C20 16 19 18 18 19C22 17 26 14 28 10C28 10 28 18 22 23C20.5 24.3 18.5 25 16 25C13.5 25 11.5 24.3 10 23C4 18 4 10 4 10C6 14 10 17 14 19C13 18 12 16 12 14C12 8 16 2 16 2Z" fill="currentColor"/>
+          <path d="M16 25C16 25 16 30 16 30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 28H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Cannapass
+      </a>
+
+      <nav class="footer-links" aria-label="Links do rodape">
+        <a href="/termos.html">Termos de Uso</a>
+        <a href="/privacidade.html">Pol&iacute;tica de Privacidade</a>
+        <a href="/index.html">Acessar Plataforma</a>
+      </nav>
+
+      <div class="footer-copy">
+        &copy; 2024&ndash;2026 Cannapass. Todos os direitos reservados.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* --- Navbar scroll shadow --- */
+      const navbar = document.getElementById('navbar');
+      let lastScroll = 0;
+      function onScroll() {
+        const y = window.scrollY;
+        navbar.classList.toggle('scrolled', y > 20);
+        lastScroll = y;
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+
+      /* --- Mobile menu --- */
+      const burger = document.getElementById('navBurger');
+      const navLinks = document.getElementById('navLinks');
+      burger.addEventListener('click', function () {
+        const isOpen = navLinks.classList.toggle('open');
+        burger.classList.toggle('open', isOpen);
+        burger.setAttribute('aria-expanded', isOpen);
+        burger.setAttribute('aria-label', isOpen ? 'Fechar menu' : 'Abrir menu');
+      });
+      /* Close menu on link click */
+      navLinks.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () {
+          navLinks.classList.remove('open');
+          burger.classList.remove('open');
+          burger.setAttribute('aria-expanded', 'false');
+          burger.setAttribute('aria-label', 'Abrir menu');
+        });
+      });
+
+      /* --- IntersectionObserver for fade-in --- */
+      var fadeEls = document.querySelectorAll('.fade-in');
+      if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, {
+          threshold: 0.12,
+          rootMargin: '0px 0px -40px 0px'
+        });
+        fadeEls.forEach(function (el) { observer.observe(el); });
+      } else {
+        /* Fallback: show everything */
+        fadeEls.forEach(function (el) { el.classList.add('visible'); });
+      }
+
+      /* --- Smooth scroll for anchor links (fallback for older browsers) --- */
+      document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
+        anchor.addEventListener('click', function (e) {
+          var targetId = this.getAttribute('href');
+          if (targetId === '#') return;
+          var target = document.querySelector(targetId);
+          if (target) {
+            e.preventDefault();
+            var offset = navbar.offsetHeight + 16;
+            var top = target.getBoundingClientRect().top + window.scrollY - offset;
+            window.scrollTo({ top: top, behavior: 'smooth' });
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
