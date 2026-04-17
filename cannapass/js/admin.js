@@ -14,6 +14,7 @@ const Admin = (() => {
   let qrPage = 0;
   let usuariosPage = 0;
   let transportMap = null;
+  let chartVerifStates = null;
 
   // ─── Brazil Cities Coordinates (state capitals + major transport hubs) ───
   const BRAZIL_CITIES = {
@@ -95,6 +96,7 @@ const Admin = (() => {
       case 'verificacoes': renderVerificacoes(container); break;
       case 'qr-management': renderQRManagement(container); break;
       case 'relatorios': renderRelatorios(container); break;
+      case 'auditoria': renderAuditoria(container); break;
       case 'usuarios': renderUsuarios(container); break;
       default: renderDashboard(container);
     }
@@ -139,12 +141,26 @@ const Admin = (() => {
             <div class="stat-label">QR Codes Ativos</div>
           </div>
         </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-approval-rate">—</div>
+            <div class="stat-label">Taxa de Aprovação</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+          <div class="stat-info">
+            <div class="stat-value" id="stat-total-verif">—</div>
+            <div class="stat-label">Total Verificações</div>
+          </div>
+        </div>
       </div>
 
       <div class="grid-2">
         <div class="card">
           <div class="card-header">
-            <h3 class="card-title">Cadastros por Mês</h3>
+            <h3 class="card-title">Evolução Temporal</h3>
           </div>
           <div class="card-body">
             <div class="chart-container">
@@ -160,6 +176,20 @@ const Admin = (() => {
             <div class="chart-container">
               <canvas id="chart-status"></canvas>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Verificações por Estado</h3>
+            <p class="text-sm text-muted" style="margin-top:2px;">Distribuição geográfica das verificações de QR Code</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="position:relative;height:350px;">
+            <canvas id="chart-verif-states"></canvas>
           </div>
         </div>
       </div>
@@ -189,12 +219,15 @@ const Admin = (() => {
 
   async function loadAdminStats() {
     try {
-      const [patientsRes, pendingRes, qrRes, verificationsRes] = await Promise.all([
+      const [patientsRes, pendingRes, qrRes, verificationsRes, approvedRes, totalVerifRes, draftRes] = await Promise.all([
         sb.from('patients').select('id', { count: 'exact', head: true }),
         sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         sb.from('qr_codes').select('id', { count: 'exact', head: true }).eq('is_active', true),
         sb.from('verifications').select('id', { count: 'exact', head: true })
-          .gte('created_at', dayjs().startOf('day').toISOString())
+          .gte('created_at', dayjs().startOf('day').toISOString()),
+        sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+        sb.from('verifications').select('id', { count: 'exact', head: true }),
+        sb.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'draft')
       ]);
 
       const el = (id) => document.getElementById(id);
@@ -202,6 +235,14 @@ const Admin = (() => {
       if (el('stat-pending')) el('stat-pending').textContent = pendingRes.count ?? 0;
       if (el('stat-qr-active')) el('stat-qr-active').textContent = qrRes.count ?? 0;
       if (el('stat-verified')) el('stat-verified').textContent = verificationsRes.count ?? 0;
+      if (el('stat-total-verif')) el('stat-total-verif').textContent = totalVerifRes.count ?? 0;
+
+      // Approval rate: approved / (total - draft)
+      const totalPatients = patientsRes.count ?? 0;
+      const approvedCount = approvedRes.count ?? 0;
+      const nonDraft = totalPatients - (draftRes.count ?? 0);
+      const rate = nonDraft > 0 ? Math.round((approvedCount / nonDraft) * 100) : 0;
+      if (el('stat-approval-rate')) el('stat-approval-rate').textContent = `${rate}%`;
     } catch (err) {
       console.error('[Admin] Stats load error:', err);
     }
@@ -212,45 +253,75 @@ const Admin = (() => {
       // Destroy previous instances
       if (chartRegistrations) { chartRegistrations.destroy(); chartRegistrations = null; }
       if (chartStatus) { chartStatus.destroy(); chartStatus = null; }
+      if (chartVerifStates) { chartVerifStates.destroy(); chartVerifStates = null; }
 
-      // ─── Registrations by month (last 6 months) ───
+      // ─── Temporal evolution (12 months) ───
+      const twelveMonthsAgo = dayjs().subtract(11, 'month').startOf('month').toISOString();
+      const [patientsTimeData, verifsTimeData] = await Promise.all([
+        sb.from('patients').select('created_at').gte('created_at', twelveMonthsAgo),
+        sb.from('verifications').select('created_at').gte('created_at', twelveMonthsAgo)
+      ]);
+
       const months = [];
-      for (let i = 5; i >= 0; i--) {
+      for (let i = 11; i >= 0; i--) {
         months.push(dayjs().subtract(i, 'month'));
       }
-
       const monthLabels = months.map(m => m.format('MMM/YY'));
-      const monthCounts = [];
-
-      for (const m of months) {
-        const start = m.startOf('month').toISOString();
-        const end = m.endOf('month').toISOString();
-        const { count } = await sb.from('patients')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', start)
-          .lte('created_at', end);
-        monthCounts.push(count ?? 0);
-      }
+      const regCounts = months.map(m => {
+        const key = m.format('YYYY-MM');
+        return (patientsTimeData.data || []).filter(p => dayjs(p.created_at).format('YYYY-MM') === key).length;
+      });
+      const verifMonthlyCounts = months.map(m => {
+        const key = m.format('YYYY-MM');
+        return (verifsTimeData.data || []).filter(v => dayjs(v.created_at).format('YYYY-MM') === key).length;
+      });
 
       const regCanvas = document.getElementById('chart-registrations');
       if (regCanvas) {
         chartRegistrations = new Chart(regCanvas, {
-          type: 'bar',
+          type: 'line',
           data: {
             labels: monthLabels,
-            datasets: [{
-              label: 'Cadastros',
-              data: monthCounts,
-              backgroundColor: '#22c55e88',
-              borderColor: '#22c55e',
-              borderWidth: 1,
-              borderRadius: 6
-            }]
+            datasets: [
+              {
+                label: 'Cadastros',
+                data: regCounts,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#22c55e'
+              },
+              {
+                label: 'Verificações',
+                data: verifMonthlyCounts,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#3b82f6'
+              }
+            ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { color: '#9ca3af', padding: 16, usePointStyle: true }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                padding: 12,
+                cornerRadius: 8
+              }
+            },
             scales: {
               y: {
                 beginAtZero: true,
@@ -258,7 +329,7 @@ const Admin = (() => {
                 grid: { color: '#ffffff10' }
               },
               x: {
-                ticks: { color: '#9ca3af' },
+                ticks: { color: '#9ca3af', maxRotation: 45 },
                 grid: { display: false }
               }
             }
@@ -305,8 +376,128 @@ const Admin = (() => {
           }
         });
       }
+
+      // ─── Verification heat map by state ───
+      await loadVerifByStateChart();
+
     } catch (err) {
       console.error('[Admin] Charts error:', err);
+    }
+  }
+
+  // ─── Closest State Helper (for geo-mapping verifications) ───
+  function getClosestUF(lat, lng) {
+    let closestUf = null;
+    let minDist = Infinity;
+    for (const [, city] of Object.entries(BRAZIL_CITIES)) {
+      const d = (lat - city.lat) ** 2 + (lng - city.lng) ** 2;
+      if (d < minDist) { minDist = d; closestUf = city.uf; }
+    }
+    return closestUf;
+  }
+
+  // ─── Verification by State Horizontal Bar Chart ───
+  async function loadVerifByStateChart() {
+    try {
+      const { data: allVerifs } = await sb.from('verifications')
+        .select('latitude, longitude, location');
+
+      const stateVerifCounts = {};
+      for (const v of (allVerifs || [])) {
+        let uf = null;
+        // Try lat/lng first
+        if (v.latitude && v.longitude) {
+          uf = getClosestUF(v.latitude, v.longitude);
+        }
+        // Fallback: match location text to a city/state
+        if (!uf && v.location) {
+          const matched = matchCity(v.location);
+          if (matched) uf = matched.uf;
+        }
+        if (uf) stateVerifCounts[uf] = (stateVerifCounts[uf] || 0) + 1;
+      }
+
+      const sorted = Object.entries(stateVerifCounts)
+        .sort((a, b) => b[1] - a[1]).slice(0, 15);
+
+      const canvas = document.getElementById('chart-verif-states');
+      if (!canvas) return;
+
+      if (sorted.length === 0) {
+        canvas.parentElement.innerHTML = `
+          <div class="empty-state" style="padding:2rem;">
+            <div class="empty-state-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5">
+                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <h4>Nenhuma verificação geolocalizada</h4>
+            <p class="text-muted text-sm">Os dados aparecerão quando verificações com localização forem registradas.</p>
+          </div>`;
+        return;
+      }
+
+      const labels = sorted.map(([uf]) => UF_NAMES[uf] || uf);
+      const data = sorted.map(([, count]) => count);
+      const maxVal = Math.max(...data);
+
+      chartVerifStates = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Verificações',
+            data,
+            backgroundColor: data.map(v => {
+              const intensity = maxVal > 0 ? v / maxVal : 0;
+              // Green → Red gradient for heat map effect
+              const r = Math.round(34 + intensity * 205);
+              const g = Math.round(197 - intensity * 129);
+              const b = Math.round(94 - intensity * 26);
+              return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            }),
+            borderColor: data.map(v => {
+              const intensity = maxVal > 0 ? v / maxVal : 0;
+              const r = Math.round(34 + intensity * 205);
+              const g = Math.round(197 - intensity * 129);
+              const b = Math.round(94 - intensity * 26);
+              return `rgb(${r}, ${g}, ${b})`;
+            }),
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              padding: 12,
+              cornerRadius: 8,
+              callbacks: {
+                label: (ctx) => ` ${ctx.parsed.x} verificação(ões)`
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, color: '#9ca3af' },
+              grid: { color: '#ffffff10' }
+            },
+            y: {
+              ticks: { color: '#9ca3af', font: { size: 12 } },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.error('[Admin] Verif by state chart error:', err);
     }
   }
 
@@ -871,6 +1062,9 @@ const Admin = (() => {
       Toast.success(`Cadastro de "${patientName}" excluido com sucesso!`);
       loadCadastros();
 
+      // Audit log
+      logAudit('delete_patient', 'patient', patientId, { patient_name: patientName });
+
       // Clear detail area if open
       const detailArea = document.getElementById('cadastro-detail-area');
       if (detailArea) detailArea.innerHTML = '';
@@ -1140,6 +1334,19 @@ const Admin = (() => {
     }
   }
 
+  // ─── Audit Logger (non-blocking) ───
+  function logAudit(action, targetType, targetId, details = {}) {
+    const adminId = State.get('user')?.id;
+    if (!adminId) return;
+    sb.from('audit_log').insert({
+      admin_id: adminId,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      details
+    }).then(() => {}).catch(err => console.warn('[Audit]', err));
+  }
+
   async function approvePatient(patientId) {
     // Fetch patient to detect renewal
     const { data: patient } = await sb.from('patients').select('full_name, email, status, renewal_count').eq('id', patientId).single();
@@ -1184,6 +1391,25 @@ const Admin = (() => {
       Toast.success(isRenewal ? 'Renovacao aprovada com sucesso!' : 'Cadastro aprovado com sucesso!');
       document.getElementById('cadastro-detail-area').innerHTML = '';
       loadCadastros();
+
+      // Audit log
+      logAudit(
+        isRenewal ? 'approve_renewal' : 'approve_patient',
+        'patient', patientId,
+        { patient_name: patient.full_name }
+      );
+
+      // In-app notification to patient
+      const { data: patientProfile } = await sb.from('patients').select('user_id').eq('id', patientId).single();
+      if (patientProfile?.user_id && typeof Notifications !== 'undefined') {
+        Notifications.create(
+          patientProfile.user_id,
+          isRenewal ? 'Renovação Aprovada!' : 'Cadastro Aprovado!',
+          isRenewal ? 'Sua renovação foi aprovada. Seus dados estão atualizados.' : 'Seu cadastro foi aprovado. Você já pode gerar QR Codes.',
+          'success',
+          isRenewal ? 'dashboard' : 'qrcode'
+        );
+      }
 
       // Send email notification (non-blocking)
       if (patient?.email) {
@@ -1283,6 +1509,25 @@ const Admin = (() => {
 
       if (area) area.innerHTML = '';
       loadCadastros();
+
+      // Audit log
+      logAudit(
+        isRenewal ? 'reject_renewal' : 'reject_patient',
+        'patient', patientId,
+        { patient_name: patient.full_name, reason }
+      );
+
+      // In-app notification to patient
+      const { data: patientProfile2 } = await sb.from('patients').select('user_id').eq('id', patientId).single();
+      if (patientProfile2?.user_id && typeof Notifications !== 'undefined') {
+        Notifications.create(
+          patientProfile2.user_id,
+          isRenewal ? 'Renovação Rejeitada' : 'Cadastro Rejeitado',
+          reason ? `Motivo: ${reason}` : 'Entre em contato para mais informações.',
+          'error',
+          'cadastro'
+        );
+      }
 
       // Send email notification (non-blocking)
       if (patient?.email) {
@@ -2043,6 +2288,144 @@ const Admin = (() => {
   }
 
   // ═══════════════════════════════════════════
+  //  AUDITORIA (Audit Log)
+  // ═══════════════════════════════════════════
+  let auditoriaPage = 0;
+
+  function renderAuditoria(container) {
+    auditoriaPage = 0;
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>Log de Auditoria</h2>
+        <p>Registro de todas as ações administrativas</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="filters-bar">
+            <select id="audit-filter-action" class="form-select">
+              <option value="">Todas as Ações</option>
+              <option value="approve_patient">Aprovar Cadastro</option>
+              <option value="reject_patient">Rejeitar Cadastro</option>
+              <option value="delete_patient">Excluir Cadastro</option>
+              <option value="approve_renewal">Aprovar Renovação</option>
+              <option value="reject_renewal">Rejeitar Renovação</option>
+              <option value="update_role">Alterar Role</option>
+            </select>
+            <input type="date" id="audit-filter-from" class="form-input" style="max-width:170px;" title="Data inicial">
+            <input type="date" id="audit-filter-to" class="form-input" style="max-width:170px;" title="Data final">
+          </div>
+        </div>
+        <div class="card-body" id="auditoria-content">
+          <div class="flex-center"><div class="spinner"></div></div>
+        </div>
+        <div class="card-footer" id="auditoria-pagination"></div>
+      </div>
+    `;
+
+    const applyAuditFilters = debounce(() => {
+      auditoriaPage = 0;
+      loadAuditoria();
+    }, 300);
+
+    document.getElementById('audit-filter-action')?.addEventListener('change', applyAuditFilters);
+    document.getElementById('audit-filter-from')?.addEventListener('change', applyAuditFilters);
+    document.getElementById('audit-filter-to')?.addEventListener('change', applyAuditFilters);
+
+    loadAuditoria();
+  }
+
+  async function loadAuditoria() {
+    const content = document.getElementById('auditoria-content');
+    if (!content) return;
+
+    content.innerHTML = '<div class="flex-center"><div class="spinner"></div></div>';
+
+    try {
+      const filterAction = document.getElementById('audit-filter-action')?.value || '';
+      const filterFrom = document.getElementById('audit-filter-from')?.value || '';
+      const filterTo = document.getElementById('audit-filter-to')?.value || '';
+
+      const from = auditoriaPage * PAGINATION.PAGE_SIZE;
+      const to = from + PAGINATION.PAGE_SIZE - 1;
+
+      let query = sb.from('audit_log')
+        .select('*, profiles:admin_id(full_name)', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (filterAction) query = query.eq('action', filterAction);
+      if (filterFrom) query = query.gte('created_at', dayjs(filterFrom).startOf('day').toISOString());
+      if (filterTo) query = query.lte('created_at', dayjs(filterTo).endOf('day').toISOString());
+
+      const { data: logs, error, count } = await query;
+      if (error) throw error;
+
+      if (!logs?.length) {
+        content.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons.historico}</div>
+            <h4>Nenhum registro de auditoria</h4>
+            <p>As ações administrativas aparecerão aqui automaticamente.</p>
+          </div>
+        `;
+        updatePagination('auditoria-pagination', 0);
+        return;
+      }
+
+      const actionLabels = {
+        'approve_patient': { label: 'Aprovar Cadastro', badge: 'badge-success' },
+        'reject_patient': { label: 'Rejeitar Cadastro', badge: 'badge-danger' },
+        'delete_patient': { label: 'Excluir Cadastro', badge: 'badge-danger' },
+        'approve_renewal': { label: 'Aprovar Renovação', badge: 'badge-success' },
+        'reject_renewal': { label: 'Rejeitar Renovação', badge: 'badge-warning' },
+        'update_role': { label: 'Alterar Role', badge: 'badge-info' }
+      };
+
+      content.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Administrador</th>
+              <th>Ação</th>
+              <th>Alvo</th>
+              <th>Detalhes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs.map(log => {
+              const act = actionLabels[log.action] || { label: log.action, badge: 'badge-neutral' };
+              const adminName = log.profiles?.full_name || 'Admin';
+              const targetName = log.details?.patient_name || log.details?.user_name || log.target_id?.slice(0, 8) || '—';
+              const detailParts = [];
+              if (log.details?.reason) detailParts.push(`Motivo: ${log.details.reason}`);
+              if (log.details?.new_role) detailParts.push(`Nova role: ${log.details.new_role}`);
+              const detailStr = detailParts.length > 0 ? detailParts.join('; ') : '—';
+
+              return `
+                <tr>
+                  <td class="text-sm">${formatDateTime(log.created_at)}</td>
+                  <td class="text-sm">${sanitizeHTML(adminName)}</td>
+                  <td><span class="badge ${act.badge}">${act.label}</span></td>
+                  <td class="text-sm">${sanitizeHTML(targetName)}</td>
+                  <td class="text-sm text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${sanitizeHTML(detailStr)}">${sanitizeHTML(detailStr)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+
+      updatePagination('auditoria-pagination', count || 0);
+
+    } catch (err) {
+      console.error('[Admin] Auditoria error:', err);
+      content.innerHTML = '<p class="text-muted text-center">Erro ao carregar log de auditoria.</p>';
+    }
+  }
+
+  // ═══════════════════════════════════════════
   //  USUÁRIOS
   // ═══════════════════════════════════════════
   function renderUsuarios(container) {
@@ -2165,6 +2548,7 @@ const Admin = (() => {
             const { error } = await sb.from('profiles').update({ role: newRole }).eq('id', userId);
             if (error) throw error;
             Toast.success('Role atualizada com sucesso!');
+            logAudit('update_role', 'user', userId, { old_role: currentRole, new_role: newRole });
             e.target.dataset.current = newRole;
           } catch (err) {
             console.error('[Admin] Role change error:', err);
@@ -2251,6 +2635,7 @@ const Admin = (() => {
     if (containerId === 'cadastros-pagination') currentPage = cadastrosPage;
     else if (containerId === 'verificacoes-pagination') currentPage = verificacoesPage;
     else if (containerId === 'qr-pagination') currentPage = qrPage;
+    else if (containerId === 'auditoria-pagination') currentPage = auditoriaPage;
     else if (containerId === 'usuarios-pagination') currentPage = usuariosPage;
 
     if (totalPages <= 1) {
@@ -2270,6 +2655,7 @@ const Admin = (() => {
       if (containerId === 'cadastros-pagination') loadCadastros();
       else if (containerId === 'verificacoes-pagination') loadVerificacoes();
       else if (containerId === 'qr-pagination') loadQRCodes();
+      else if (containerId === 'auditoria-pagination') loadAuditoria();
       else if (containerId === 'usuarios-pagination') loadUsuarios();
     };
 
@@ -2277,6 +2663,7 @@ const Admin = (() => {
       if (containerId === 'cadastros-pagination') cadastrosPage--;
       else if (containerId === 'verificacoes-pagination') verificacoesPage--;
       else if (containerId === 'qr-pagination') qrPage--;
+      else if (containerId === 'auditoria-pagination') auditoriaPage--;
       else if (containerId === 'usuarios-pagination') usuariosPage--;
       reload();
     });
@@ -2285,6 +2672,7 @@ const Admin = (() => {
       if (containerId === 'cadastros-pagination') cadastrosPage++;
       else if (containerId === 'verificacoes-pagination') verificacoesPage++;
       else if (containerId === 'qr-pagination') qrPage++;
+      else if (containerId === 'auditoria-pagination') auditoriaPage++;
       else if (containerId === 'usuarios-pagination') usuariosPage++;
       reload();
     });

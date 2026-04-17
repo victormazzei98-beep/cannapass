@@ -4,6 +4,9 @@
    ═══════════════════════════════════════════ */
 
 const Agent = (() => {
+  // ─── i18n shortcut ───
+  const _t = (key, fb) => typeof I18n !== 'undefined' ? I18n.t(key, fb) : fb || key;
+
   // ─── Local state ───
   let html5QrCode = null;
   let scannerRunning = false;
@@ -34,6 +37,7 @@ const Agent = (() => {
       case 'scanner': renderScanner(container); break;
       case 'busca': renderBusca(container); break;
       case 'historico-agent': renderHistorico(container); break;
+      case 'agent-stats': renderAgentStats(container); break;
       case 'guia': renderGuia(container); break;
       default: renderScanner(container);
     }
@@ -45,36 +49,36 @@ const Agent = (() => {
   function renderScanner(container) {
     container.innerHTML = `
       <div class="page-header">
-        <h2>Scanner QR Code</h2>
-        <p>Escaneie o QR Code do paciente para verificação</p>
+        <h2>${_t('agent.scanner.title', 'Scanner QR Code')}</h2>
+        <p>${_t('agent.scanner.subtitle', 'Escaneie o QR Code do paciente para verificação')}</p>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <h3 class="card-title">Câmera</h3>
-          <button class="btn btn-primary btn-sm" id="scanner-toggle-btn">Iniciar Scanner</button>
+          <h3 class="card-title">${_t('agent.scanner.camera', 'Câmera')}</h3>
+          <button class="btn btn-primary btn-sm" id="scanner-toggle-btn">${_t('agent.scanner.start', 'Iniciar Scanner')}</button>
         </div>
         <div class="card-body">
           <div id="qr-reader" style="width:100%;max-width:500px;margin:0 auto;"></div>
           <div id="scanner-placeholder" class="empty-state">
             <div class="empty-state-icon">${Icons['empty-camera']}</div>
-            <h4>Scanner desativado</h4>
-            <p>Clique em "Iniciar Scanner" para ativar a câmera</p>
+            <h4>${_t('agent.scanner.disabled', 'Scanner desativado')}</h4>
+            <p>${_t('agent.scanner.clickToStart', 'Clique em "Iniciar Scanner" para ativar a câmera')}</p>
           </div>
         </div>
       </div>
 
       <div class="card mt-md">
         <div class="card-header">
-          <h3 class="card-title">Código Manual</h3>
+          <h3 class="card-title">${_t('agent.scanner.manual', 'Código Manual')}</h3>
         </div>
         <div class="card-body">
           <div class="form-group">
-            <label class="form-label">Token ou URL do QR Code</label>
+            <label class="form-label">${_t('agent.scanner.manualLabel', 'Token ou URL do QR Code')}</label>
             <input type="text" id="manual-token-input" class="form-input" placeholder="Cole o token ou URL aqui...">
-            <span class="form-hint">Ex: https://cannapass.vercel.app/#/v/abc123 ou apenas abc123</span>
+            <span class="form-hint">${_t('agent.scanner.manualHint', 'Ex: https://cannapass.vercel.app/#/v/abc123 ou apenas abc123')}</span>
           </div>
-          <button class="btn btn-primary mt-sm" id="manual-verify-btn">Verificar</button>
+          <button class="btn btn-primary mt-sm" id="manual-verify-btn">${_t('agent.scanner.verify', 'Verificar')}</button>
         </div>
       </div>
 
@@ -580,18 +584,27 @@ const Agent = (() => {
   function renderBusca(container) {
     container.innerHTML = `
       <div class="page-header">
-        <h2>Busca Manual</h2>
-        <p>Busque por CPF, código de registro ou nome</p>
+        <h2>${_t('agent.search.title', 'Busca Avançada')}</h2>
+        <p>${_t('agent.search.subtitle', 'Busque por CPF (completo ou parcial), código de registro ou nome')}</p>
       </div>
 
       <div class="card">
         <div class="card-body">
           <div class="form-group">
-            <label class="form-label">Pesquisar</label>
-            <input type="text" id="busca-input" class="form-input" placeholder="CPF, código de registro ou nome do paciente">
-            <span class="form-hint">Digite o CPF (com ou sem pontuação), o código de registro ou o nome completo</span>
+            <label class="form-label">${_t('agent.search.label', 'Pesquisar')}</label>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+              <input type="text" id="busca-input" class="form-input" placeholder="${_t('agent.search.placeholder', 'CPF, código de registro ou nome...')}" style="flex:1;min-width:200px;">
+              <select id="busca-status-filter" class="form-select" style="max-width:200px;">
+                <option value="">${_t('agent.search.allStatus', 'Todos os Status')}</option>
+                <option value="approved">${_t('status.approved', 'Aprovado')}</option>
+                <option value="pending">${_t('status.pending', 'Pendente')}</option>
+                <option value="rejected">${_t('status.rejected', 'Rejeitado')}</option>
+                <option value="renewal_pending">${_t('status.renewal_pending', 'Renovação Pendente')}</option>
+              </select>
+            </div>
+            <span class="form-hint">${_t('agent.search.hint', 'CPF parcial (ex: últimos 4 dígitos), CPF completo, número de registro ou nome do paciente')}</span>
           </div>
-          <button class="btn btn-primary mt-sm" id="busca-btn">${Icons.busca} Buscar</button>
+          <button class="btn btn-primary mt-sm" id="busca-btn">${Icons.busca} ${_t('common.search', 'Buscar')}</button>
         </div>
       </div>
 
@@ -599,11 +612,11 @@ const Agent = (() => {
       <div id="busca-detail" class="mt-md"></div>
     `;
 
-    // CPF mask on input
+    // CPF mask on input (only when 11 digits)
     const input = document.getElementById('busca-input');
     input.addEventListener('input', (e) => {
       const raw = e.target.value.replace(/\D/g, '');
-      // Auto-apply CPF mask if user is typing digits and it looks like a CPF
+      // Auto-apply CPF mask only if user is typing digits and it looks like a full CPF
       if (raw.length > 0 && raw.length <= 11 && /^\d+$/.test(e.target.value.replace(/[.\-]/g, ''))) {
         e.target.value = maskCPF(raw);
       }
@@ -626,6 +639,7 @@ const Agent = (() => {
   async function performSearch(query) {
     const resultsEl = document.getElementById('busca-results');
     const detailEl = document.getElementById('busca-detail');
+    const statusFilter = document.getElementById('busca-status-filter')?.value || '';
     if (!resultsEl) return;
     if (detailEl) detailEl.innerHTML = '';
 
@@ -641,30 +655,61 @@ const Agent = (() => {
     try {
       const digits = query.replace(/\D/g, '');
       let patients = [];
+      let searchMethod = '';
 
-      // If looks like a CPF (11 digits), search by CPF
+      // 1. If looks like a full CPF (11 digits), search by exact CPF
       if (digits.length === 11) {
-        const { data } = await sb.from('patients')
-          .select('*')
-          .eq('cpf', digits);
-        if (data) patients = data;
+        let q = sb.from('patients').select('*').eq('cpf', digits);
+        if (statusFilter) q = q.eq('status', statusFilter);
+        const { data } = await q;
+        if (data && data.length > 0) {
+          patients = data;
+          searchMethod = _t('agent.search.method.cpfExact', 'CPF exato');
+        }
       }
 
-      // If no CPF results, try registration_id (exact)
+      // 2. If 3-10 digits → partial CPF search
+      if (patients.length === 0 && digits.length >= 3 && digits.length < 11) {
+        let q = sb.from('patients').select('*').ilike('cpf', `%${digits}%`).limit(20);
+        if (statusFilter) q = q.eq('status', statusFilter);
+        const { data } = await q;
+        if (data && data.length > 0) {
+          patients = data;
+          searchMethod = _t('agent.search.method.cpfPartial', 'CPF parcial');
+        }
+      }
+
+      // 3. Try registration_id (exact match)
       if (patients.length === 0 && query.length > 0) {
-        const { data } = await sb.from('patients')
-          .select('*')
-          .eq('registration_id', query);
-        if (data && data.length > 0) patients = data;
+        let q = sb.from('patients').select('*').eq('registration_id', query);
+        if (statusFilter) q = q.eq('status', statusFilter);
+        const { data } = await q;
+        if (data && data.length > 0) {
+          patients = data;
+          searchMethod = _t('agent.search.method.regId', 'Código de registro');
+        }
       }
 
-      // If still no results, try name search (ilike)
+      // 4. Try registration_id partial (ilike)
       if (patients.length === 0 && query.length >= 3) {
-        const { data } = await sb.from('patients')
-          .select('*')
-          .ilike('full_name', `%${query}%`)
-          .limit(20);
-        if (data) patients = data;
+        let q = sb.from('patients').select('*').ilike('registration_id', `%${query}%`).limit(20);
+        if (statusFilter) q = q.eq('status', statusFilter);
+        const { data } = await q;
+        if (data && data.length > 0) {
+          patients = data;
+          searchMethod = _t('agent.search.method.regPartial', 'Código parcial');
+        }
+      }
+
+      // 5. Try name search (ilike)
+      if (patients.length === 0 && query.length >= 3) {
+        let q = sb.from('patients').select('*').ilike('full_name', `%${query}%`).limit(20);
+        if (statusFilter) q = q.eq('status', statusFilter);
+        const { data } = await q;
+        if (data && data.length > 0) {
+          patients = data;
+          searchMethod = _t('agent.search.method.name', 'Nome');
+        }
       }
 
       if (patients.length === 0) {
@@ -674,7 +719,7 @@ const Agent = (() => {
               <div class="empty-state">
                 <div class="empty-state-icon">${Icons['empty-search']}</div>
                 <h4>Nenhum resultado</h4>
-                <p>Nenhum paciente encontrado para "${sanitizeHTML(query)}"</p>
+                <p>Nenhum paciente encontrado para "${sanitizeHTML(query)}"${statusFilter ? ` com status "${getStatusLabel(statusFilter)}"` : ''}</p>
               </div>
             </div>
           </div>
@@ -682,13 +727,19 @@ const Agent = (() => {
         return;
       }
 
-      let html = `<h4 class="mb-sm">${patients.length} resultado${patients.length > 1 ? 's' : ''}</h4>`;
+      let html = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <h4>${patients.length} resultado${patients.length > 1 ? 's' : ''}</h4>
+          <span class="badge badge-neutral">${sanitizeHTML(searchMethod)}</span>
+        </div>
+      `;
       for (const p of patients) {
+        const regId = p.registration_id ? `<code class="text-xs" style="margin-left:0.5rem;">${sanitizeHTML(p.registration_id)}</code>` : '';
         html += `
           <div class="card mb-sm" style="cursor:pointer;" data-patient-id="${p.id}">
             <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;">
               <div>
-                <strong>${sanitizeHTML(p.full_name)}</strong>
+                <strong>${sanitizeHTML(p.full_name)}</strong>${regId}
                 <p class="text-sm text-muted">${sanitizeHTML(maskCPF(p.cpf || ''))} &middot; ${sanitizeHTML(getViaLabel(p.via))}</p>
               </div>
               <div style="display:flex;align-items:center;gap:0.5rem;">
@@ -830,14 +881,14 @@ const Agent = (() => {
     historicoPage = 0;
     container.innerHTML = `
       <div class="page-header">
-        <h2>Histórico de Verificações</h2>
-        <p>Verificações realizadas por você</p>
+        <h2>${_t('agent.history.title', 'Histórico de Verificações')}</h2>
+        <p>${_t('agent.history.subtitle', 'Verificações realizadas por você')}</p>
       </div>
       <div id="historico-content">
         <div class="card">
           <div class="card-body text-center">
             <div class="spinner"></div>
-            <p class="mt-sm text-muted">Carregando histórico...</p>
+            <p class="mt-sm text-muted">${_t('common.loading', 'Carregando...')}</p>
           </div>
         </div>
       </div>
@@ -889,10 +940,10 @@ const Agent = (() => {
 
       const resultBadge = (r) => {
         const map = {
-          valid: { class: 'badge-success', label: 'Válido' },
-          invalid: { class: 'badge-danger', label: 'Inválido' },
-          expired: { class: 'badge-warning', label: 'Expirado' },
-          suspicious: { class: 'badge-danger', label: 'Suspeito' }
+          valid: { class: 'badge-success', label: _t('result.valid', 'Válido') },
+          invalid: { class: 'badge-danger', label: _t('result.invalid', 'Inválido') },
+          expired: { class: 'badge-warning', label: _t('result.expired', 'Expirado') },
+          suspicious: { class: 'badge-danger', label: _t('result.suspicious', 'Suspeito') }
         };
         const cfg = map[r] || { class: 'badge-neutral', label: r };
         return `<span class="badge ${cfg.class}">${cfg.label}</span>`;
@@ -919,10 +970,10 @@ const Agent = (() => {
             <table class="table">
               <thead>
                 <tr>
-                  <th>Data</th>
-                  <th>Paciente</th>
-                  <th>Resultado</th>
-                  <th>Local</th>
+                  <th>${_t('table.date', 'Data')}</th>
+                  <th>${_t('table.patient', 'Paciente')}</th>
+                  <th>${_t('table.result', 'Resultado')}</th>
+                  <th>${_t('table.location', 'Local')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1045,13 +1096,254 @@ const Agent = (() => {
   }
 
   // ═══════════════════════════════════════════
+  //  AGENT STATS PAGE
+  // ═══════════════════════════════════════════
+  let chartWeekly = null;
+  let chartResults = null;
+
+  async function renderAgentStats(container) {
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>${_t('agent.stats.title', 'Minhas Estatísticas')}</h2>
+        <p>${_t('agent.stats.subtitle', 'Métricas das suas verificações')}</p>
+      </div>
+
+      <div class="stats-grid" id="agent-stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">${Icons['stat-verified']}</div>
+          <div class="stat-info">
+            <div class="stat-value" id="astat-total">—</div>
+            <div class="stat-label">${_t('agent.stats.total', 'Total de Verificações')}</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">${Icons['stat-pending']}</div>
+          <div class="stat-info">
+            <div class="stat-value" id="astat-today">—</div>
+            <div class="stat-label">${_t('agent.stats.today', 'Hoje')}</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div class="stat-info">
+            <div class="stat-value" id="astat-valid-rate">—</div>
+            <div class="stat-label">${_t('agent.stats.validRate', 'Taxa de Válidos')}</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          <div class="stat-info">
+            <div class="stat-value" id="astat-week">—</div>
+            <div class="stat-label">${_t('agent.stats.thisWeek', 'Esta Semana')}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">${_t('agent.stats.dailyChart', 'Verificações por Dia (últimos 14 dias)')}</h3>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chart-agent-weekly"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">${_t('agent.stats.resultsChart', 'Resultados')}</h3>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chart-agent-results"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-header">
+          <h3 class="card-title">${_t('agent.stats.recent', 'Últimas Verificações')}</h3>
+        </div>
+        <div class="card-body" style="overflow-x:auto;" id="agent-recent-verifs">
+          <div class="flex-center"><div class="spinner"></div></div>
+        </div>
+      </div>
+    `;
+
+    await loadAgentStats();
+  }
+
+  async function loadAgentStats() {
+    try {
+      const userId = State.get('user')?.id;
+      if (!userId) return;
+
+      // Fetch all verifications for this agent
+      const { data: allVerifs } = await sb.from('verifications')
+        .select('created_at, result, patient_name, agent_location')
+        .eq('agent_id', userId)
+        .order('created_at', { ascending: false });
+
+      const verifs = allVerifs || [];
+      const el = (id) => document.getElementById(id);
+
+      // ─── Stats ───
+      const total = verifs.length;
+      const todayStr = dayjs().format('YYYY-MM-DD');
+      const todayCount = verifs.filter(v => dayjs(v.created_at).format('YYYY-MM-DD') === todayStr).length;
+      const weekStart = dayjs().startOf('week').toISOString();
+      const weekCount = verifs.filter(v => dayjs(v.created_at).isAfter(weekStart)).length;
+      const validCount = verifs.filter(v => v.result === 'valid').length;
+      const validRate = total > 0 ? Math.round((validCount / total) * 100) : 0;
+
+      if (el('astat-total')) el('astat-total').textContent = total;
+      if (el('astat-today')) el('astat-today').textContent = todayCount;
+      if (el('astat-week')) el('astat-week').textContent = weekCount;
+      if (el('astat-valid-rate')) el('astat-valid-rate').textContent = `${validRate}%`;
+
+      // ─── Daily chart (last 14 days) ───
+      if (chartWeekly) { chartWeekly.destroy(); chartWeekly = null; }
+      if (chartResults) { chartResults.destroy(); chartResults = null; }
+
+      const days = [];
+      for (let i = 13; i >= 0; i--) {
+        days.push(dayjs().subtract(i, 'day'));
+      }
+      const dayLabels = days.map(d => d.format('DD/MM'));
+      const dayCounts = days.map(d => {
+        const key = d.format('YYYY-MM-DD');
+        return verifs.filter(v => dayjs(v.created_at).format('YYYY-MM-DD') === key).length;
+      });
+
+      const weeklyCanvas = document.getElementById('chart-agent-weekly');
+      if (weeklyCanvas && typeof Chart !== 'undefined') {
+        chartWeekly = new Chart(weeklyCanvas, {
+          type: 'bar',
+          data: {
+            labels: dayLabels,
+            datasets: [{
+              label: 'Verificações',
+              data: dayCounts,
+              backgroundColor: '#22c55e88',
+              borderColor: '#22c55e',
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: '#9ca3af' },
+                grid: { color: '#ffffff10' }
+              },
+              x: {
+                ticks: { color: '#9ca3af', maxRotation: 45, font: { size: 10 } },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+
+      // ─── Results doughnut ───
+      const invalidCount = verifs.filter(v => v.result === 'invalid').length;
+      const expiredCount = verifs.filter(v => v.result === 'expired').length;
+      const suspiciousCount = verifs.filter(v => v.result === 'suspicious').length;
+
+      const resultsCanvas = document.getElementById('chart-agent-results');
+      if (resultsCanvas && typeof Chart !== 'undefined') {
+        chartResults = new Chart(resultsCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: [_t('result.valid','Válido'), _t('result.invalid','Inválido'), _t('result.expired','Expirado'), _t('result.suspicious','Suspeito')],
+            datasets: [{
+              data: [validCount, invalidCount, expiredCount, suspiciousCount],
+              backgroundColor: ['#22c55e', '#ef4444', '#eab308', '#f97316'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: '#9ca3af', padding: 16 }
+              }
+            }
+          }
+        });
+      }
+
+      // ─── Recent verifications table ───
+      const recentEl = document.getElementById('agent-recent-verifs');
+      if (!recentEl) return;
+
+      const recent = verifs.slice(0, 10);
+      if (recent.length === 0) {
+        recentEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">${Icons['empty-clock']}</div>
+            <h4>Nenhuma verificação</h4>
+            <p>Suas verificações aparecerão aqui.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const resultBadge = (r) => {
+        const map = {
+          valid: { cls: 'badge-success', label: _t('result.valid','Válido') },
+          invalid: { cls: 'badge-danger', label: _t('result.invalid','Inválido') },
+          expired: { cls: 'badge-warning', label: _t('result.expired','Expirado') },
+          suspicious: { cls: 'badge-danger', label: _t('result.suspicious','Suspeito') }
+        };
+        const cfg = map[r] || { cls: 'badge-neutral', label: r };
+        return `<span class="badge ${cfg.cls}">${cfg.label}</span>`;
+      };
+
+      recentEl.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Paciente</th>
+              <th>Resultado</th>
+              <th>Local</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recent.map(v => `
+              <tr>
+                <td class="text-sm">${formatDateTime(v.created_at)}</td>
+                <td class="text-sm">${sanitizeHTML(v.patient_name || '—')}</td>
+                <td>${resultBadge(v.result)}</td>
+                <td class="text-sm">${sanitizeHTML(v.agent_location || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (err) {
+      console.error('[AgentStats]', err);
+      Toast.error('Erro ao carregar estatísticas.');
+    }
+  }
+
+  // ═══════════════════════════════════════════
   //  GUIA PAGE (kept exactly as original)
   // ═══════════════════════════════════════════
   function renderGuia(container) {
     container.innerHTML = `
       <div class="page-header">
-        <h2>Guia de Fiscalização</h2>
-        <p>Procedimento passo a passo para verificação de transporte</p>
+        <h2>${_t('agent.guide.title', 'Guia de Fiscalização')}</h2>
+        <p>${_t('agent.guide.subtitle', 'Procedimento passo a passo para verificação de transporte')}</p>
       </div>
       <div class="card">
         <div class="card-body">
@@ -1059,36 +1351,36 @@ const Agent = (() => {
             <div class="guide-step">
               <div class="guide-step-number">1</div>
               <div>
-                <h4>Solicitar QR Code</h4>
-                <p>Peça ao passageiro para apresentar o QR Code do Cannapass no celular ou impresso.</p>
+                <h4>${_t('agent.guide.step1.title', 'Solicitar QR Code')}</h4>
+                <p>${_t('agent.guide.step1.desc', 'Peça ao passageiro para apresentar o QR Code do Cannapass no celular ou impresso.')}</p>
               </div>
             </div>
             <div class="guide-step">
               <div class="guide-step-number">2</div>
               <div>
-                <h4>Escanear QR Code</h4>
-                <p>Use o scanner do aplicativo para ler o QR Code. A câmera traseira será ativada automaticamente.</p>
+                <h4>${_t('agent.guide.step2.title', 'Escanear QR Code')}</h4>
+                <p>${_t('agent.guide.step2.desc', 'Use o scanner do aplicativo para ler o QR Code. A câmera traseira será ativada automaticamente.')}</p>
               </div>
             </div>
             <div class="guide-step">
               <div class="guide-step-number">3</div>
               <div>
-                <h4>Verificar Resultado</h4>
-                <p>O sistema mostrará se o QR Code é válido, expirado ou inválido. Confira os dados exibidos.</p>
+                <h4>${_t('agent.guide.step3.title', 'Verificar Resultado')}</h4>
+                <p>${_t('agent.guide.step3.desc', 'O sistema mostrará se o QR Code é válido, expirado ou inválido. Confira os dados exibidos.')}</p>
               </div>
             </div>
             <div class="guide-step">
               <div class="guide-step-number">4</div>
               <div>
-                <h4>Conferir Documentos</h4>
-                <p>Para QR Codes válidos, verifique a foto do documento de identidade e a prescrição médica ou decisão judicial.</p>
+                <h4>${_t('agent.guide.step4.title', 'Conferir Documentos')}</h4>
+                <p>${_t('agent.guide.step4.desc', 'Para QR Codes válidos, verifique a foto do documento de identidade e a prescrição médica ou decisão judicial.')}</p>
               </div>
             </div>
             <div class="guide-step">
               <div class="guide-step-number">5</div>
               <div>
-                <h4>Liberar ou Reter</h4>
-                <p>QR Code válido com documentos conferidos: liberação imediata. Caso contrário, siga o procedimento padrão.</p>
+                <h4>${_t('agent.guide.step5.title', 'Liberar ou Reter')}</h4>
+                <p>${_t('agent.guide.step5.desc', 'QR Code válido com documentos conferidos: liberação imediata. Caso contrário, siga o procedimento padrão.')}</p>
               </div>
             </div>
           </div>
@@ -1096,12 +1388,12 @@ const Agent = (() => {
           <div class="divider"></div>
 
           <div>
-            <h4 class="mb-sm">Base Legal</h4>
+            <h4 class="mb-sm">${_t('agent.guide.legal', 'Base Legal')}</h4>
             <p class="text-sm text-muted">
-              Resolução ANVISA RDC nº 327/2019 — Autoriza a importação e uso de produtos à base de cannabis para fins medicinais.
+              ${_t('agent.guide.anvisa', 'Resolução ANVISA RDC nº 327/2019 — Autoriza a importação e uso de produtos à base de cannabis para fins medicinais.')}
             </p>
             <p class="text-sm text-muted mt-sm">
-              Lei nº 11.343/2006 — Distingue uso medicinal de tráfico. O porte com documentação válida é legal.
+              ${_t('agent.guide.law', 'Lei nº 11.343/2006 — Distingue uso medicinal de tráfico. O porte com documentação válida é legal.')}
             </p>
           </div>
         </div>
