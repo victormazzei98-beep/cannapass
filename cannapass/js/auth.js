@@ -47,6 +47,8 @@ const Auth = (() => {
           const profile = State.get('profile');
           if (isAdminWithPortalChoice(profile) && !State.get('activeRole')) {
             showPortalSelect();
+          } else if (State.get('agentPending') || State.get('agentRejected')) {
+            showAgentPending();
           } else {
             showApp();
             Router.init();
@@ -58,6 +60,7 @@ const Auth = (() => {
           State.reset();
           hideLoading();
           document.getElementById('portal-select-container')?.classList.add('hidden');
+          document.getElementById('agent-pending-container')?.classList.add('hidden');
           showAuth();
           resetForms();
         } else if (event === 'INITIAL_SESSION') {
@@ -91,6 +94,8 @@ const Auth = (() => {
           const prof = State.get('profile');
           if (isAdminWithPortalChoice(prof) && !State.get('activeRole')) {
             showPortalSelect();
+          } else if (State.get('agentPending') || State.get('agentRejected')) {
+            showAgentPending();
           } else {
             showApp();
             Router.init();
@@ -139,11 +144,36 @@ const Auth = (() => {
       State.set('patient', patient);
       State.set('activeRole', ROLES.PATIENT);
     } else if (profile.role === ROLES.AGENT) {
-      State.set('activeRole', ROLES.AGENT);
+      // Block agent if not yet approved
+      if (profile.agent_status === 'pending_approval' || profile.agent_status === null) {
+        State.set('activeRole', null);
+        State.set('agentPending', true);
+      } else if (profile.agent_status === 'rejected') {
+        State.set('activeRole', null);
+        State.set('agentRejected', true);
+      } else {
+        State.set('activeRole', ROLES.AGENT);
+      }
     }
     // Admin activeRole is set via portal selection screen
 
     State.set('loading', false);
+  }
+
+  // ─── Show Agent Pending Screen ───
+  function showAgentPending() {
+    document.getElementById('loading-screen')?.classList.add('hidden');
+    document.getElementById('auth-container')?.classList.add('hidden');
+    document.getElementById('app-container')?.classList.add('hidden');
+    document.getElementById('portal-select-container')?.classList.add('hidden');
+    const container = document.getElementById('agent-pending-container');
+    container?.classList.remove('hidden');
+
+    const profile = State.get('profile');
+    const emailEl = document.getElementById('agent-pending-email');
+    if (emailEl) emailEl.textContent = profile?.email || State.get('user')?.email || '';
+
+    document.getElementById('agent-pending-logout')?.addEventListener('click', logout);
   }
 
   // ─── Check if user should see portal selector ───
@@ -200,14 +230,19 @@ const Auth = (() => {
 
     // Create profile (trigger may handle this, but ensure it exists)
     if (data.user) {
+      const profileData = {
+        id: data.user.id,
+        full_name: fullName,
+        role: role,
+        email: email
+      };
+      // Agents start as pending until admin approves
+      if (role === ROLES.AGENT) {
+        profileData.agent_status = 'pending_approval';
+      }
       const { error: profileError } = await sb
         .from('profiles')
-        .upsert({
-          id: data.user.id,
-          full_name: fullName,
-          role: role,
-          email: email
-        }, { onConflict: 'id' });
+        .upsert(profileData, { onConflict: 'id' });
 
       if (profileError) {
         console.error('[Auth] Profile creation error:', profileError);

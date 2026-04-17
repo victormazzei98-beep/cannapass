@@ -2384,7 +2384,9 @@ const Admin = (() => {
         'delete_patient': { label: 'Excluir Cadastro', badge: 'badge-danger' },
         'approve_renewal': { label: 'Aprovar Renovação', badge: 'badge-success' },
         'reject_renewal': { label: 'Rejeitar Renovação', badge: 'badge-warning' },
-        'update_role': { label: 'Alterar Role', badge: 'badge-info' }
+        'update_role': { label: 'Alterar Role', badge: 'badge-info' },
+        'approve_agent': { label: 'Aprovar Agente', badge: 'badge-success' },
+        'reject_agent': { label: 'Rejeitar Agente', badge: 'badge-danger' }
       };
 
       content.innerHTML = `
@@ -2438,9 +2440,28 @@ const Admin = (() => {
     container.innerHTML = `
       <div class="page-header">
         <h2>Usuários</h2>
-        <p>Gerencie perfis e roles</p>
+        <p>Gerencie perfis, roles e aprovação de agentes</p>
       </div>
+
+      <!-- Agentes Pendentes -->
+      <div class="card" id="agents-pending-card" style="margin-bottom:1.5rem;">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h3 class="card-title">Agentes Aguardando Aprovação</h3>
+            <p class="card-subtitle">Aprove ou rejeite novos cadastros de agentes fiscalizadores</p>
+          </div>
+          <span class="badge badge-warning" id="pending-agents-count" style="font-size:.85rem;padding:4px 10px;">—</span>
+        </div>
+        <div class="card-body" id="pending-agents-content">
+          <div class="flex-center"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Todos os Usuários -->
       <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Todos os Usuários</h3>
+        </div>
         <div class="card-body" id="usuarios-content">
           <div class="flex-center"><div class="spinner"></div></div>
         </div>
@@ -2448,7 +2469,140 @@ const Admin = (() => {
       </div>
     `;
 
+    loadPendingAgents();
     loadUsuarios();
+  }
+
+  async function loadPendingAgents() {
+    const content = document.getElementById('pending-agents-content');
+    const countBadge = document.getElementById('pending-agents-count');
+    if (!content) return;
+
+    try {
+      const { data, error } = await sb
+        .from('profiles')
+        .select('*')
+        .eq('role', 'agent')
+        .eq('agent_status', 'pending_approval')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      if (countBadge) countBadge.textContent = data?.length || '0';
+
+      if (!data?.length) {
+        content.innerHTML = `
+          <div class="empty-state" style="padding:1.5rem;">
+            <div class="empty-state-icon">${Icons.success || '✓'}</div>
+            <h4>Nenhum agente pendente</h4>
+            <p>Todos os cadastros de agentes foram processados.</p>
+          </div>
+        `;
+        return;
+      }
+
+      content.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Organização</th>
+              <th>Cadastrado em</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(u => `
+              <tr data-agent-row="${u.id}">
+                <td><strong>${sanitizeHTML(u.full_name || '—')}</strong></td>
+                <td>${sanitizeHTML(u.email || '—')}</td>
+                <td>${sanitizeHTML(u.organization || '—')}</td>
+                <td>${formatDate(u.created_at)}</td>
+                <td style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn btn-success btn-sm approve-agent-btn"
+                    data-user-id="${u.id}"
+                    data-user-name="${sanitizeHTML(u.full_name || u.email || '')}">
+                    ${Icons.success || '✓'} Aprovar
+                  </button>
+                  <button class="btn btn-danger btn-sm reject-agent-btn"
+                    data-user-id="${u.id}"
+                    data-user-name="${sanitizeHTML(u.full_name || u.email || '')}">
+                    ${Icons.x || '✗'} Rejeitar
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Approve
+      content.querySelectorAll('.approve-agent-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.dataset.userId;
+          const userName = btn.dataset.userName;
+          const confirmed = await Modal.open({
+            title: 'Aprovar Agente',
+            body: `Aprovar o cadastro de <strong>${userName}</strong> como Agente Fiscalizador? O usuário terá acesso imediato ao portal do agente.`,
+            confirmText: 'Aprovar',
+          });
+          if (!confirmed) return;
+          btn.disabled = true;
+          btn.innerHTML = '<div class="spinner spinner-sm"></div>';
+          try {
+            const { error } = await sb.from('profiles')
+              .update({ agent_status: 'approved' })
+              .eq('id', userId);
+            if (error) throw error;
+            Toast.success(`Agente ${userName} aprovado!`);
+            logAudit('approve_agent', 'user', userId, { agent_name: userName });
+            // Remove row
+            const row = content.querySelector(`tr[data-agent-row="${userId}"]`);
+            if (row) { row.style.opacity='0'; row.style.transition='opacity .3s'; setTimeout(() => loadPendingAgents(), 300); }
+          } catch (err) {
+            Toast.error('Erro ao aprovar agente: ' + (err.message || 'Tente novamente.'));
+            btn.disabled = false;
+            btn.innerHTML = `${Icons.success || '✓'} Aprovar`;
+          }
+        });
+      });
+
+      // Reject
+      content.querySelectorAll('.reject-agent-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.dataset.userId;
+          const userName = btn.dataset.userName;
+          const confirmed = await Modal.open({
+            title: 'Rejeitar Agente',
+            body: `Rejeitar o cadastro de <strong>${userName}</strong>? O usuário não terá acesso ao portal do agente.`,
+            confirmText: 'Rejeitar',
+            danger: true
+          });
+          if (!confirmed) return;
+          btn.disabled = true;
+          btn.innerHTML = '<div class="spinner spinner-sm"></div>';
+          try {
+            const { error } = await sb.from('profiles')
+              .update({ agent_status: 'rejected' })
+              .eq('id', userId);
+            if (error) throw error;
+            Toast.success(`Cadastro de ${userName} rejeitado.`);
+            logAudit('reject_agent', 'user', userId, { agent_name: userName });
+            const row = content.querySelector(`tr[data-agent-row="${userId}"]`);
+            if (row) { row.style.opacity='0'; row.style.transition='opacity .3s'; setTimeout(() => loadPendingAgents(), 300); }
+          } catch (err) {
+            Toast.error('Erro ao rejeitar agente: ' + (err.message || 'Tente novamente.'));
+            btn.disabled = false;
+            btn.innerHTML = `${Icons.x || '✗'} Rejeitar`;
+          }
+        });
+      });
+
+    } catch (err) {
+      console.error('[Admin] Pending agents error:', err);
+      content.innerHTML = '<p class="text-muted text-center">Erro ao carregar agentes pendentes.</p>';
+    }
   }
 
   async function loadUsuarios() {
@@ -2505,7 +2659,11 @@ const Admin = (() => {
               <tr data-row-id="${u.id}">
                 <td>${sanitizeHTML(u.full_name || '—')}</td>
                 <td>${sanitizeHTML(u.email || '—')}</td>
-                <td><span class="badge badge-${roleBadgeType(u.role)}">${getRoleLabel(u.role)}</span></td>
+                <td>
+                  <span class="badge badge-${roleBadgeType(u.role)}">${getRoleLabel(u.role)}</span>
+                  ${u.role === 'agent' && u.agent_status === 'pending_approval' ? '<span class="badge badge-warning" style="margin-left:4px;font-size:.7rem;">Pendente</span>' : ''}
+                  ${u.role === 'agent' && u.agent_status === 'rejected' ? '<span class="badge badge-danger" style="margin-left:4px;font-size:.7rem;">Rejeitado</span>' : ''}
+                </td>
                 <td>${sanitizeHTML(u.organization || '—')}</td>
                 <td>${formatDate(u.created_at)}</td>
                 <td>
