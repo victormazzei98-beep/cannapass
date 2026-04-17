@@ -1,71 +1,67 @@
 /* ═══════════════════════════════════════════
    CANNAPASS — In-App Notifications
-   Bell icon, notification panel, Supabase
-   Realtime subscription, mark-as-read
+   Bell icon, notification panel, real-time
    ═══════════════════════════════════════════ */
 
 const Notifications = (() => {
-  let _channel = null;
   let _unreadCount = 0;
+  let _panelOpen = false;
+  let _subscription = null;
 
-  // ─── Initialize ───
+  // ─── Initialize (call after auth) ───
   function init() {
     renderBell();
     loadUnreadCount();
     subscribeRealtime();
   }
 
-  // ─── Destroy (on logout) ───
+  // ─── Cleanup (call on logout) ───
   function destroy() {
-    if (_channel) {
-      sb.removeChannel(_channel);
-      _channel = null;
+    if (_subscription) {
+      sb.removeChannel(_subscription);
+      _subscription = null;
     }
     _unreadCount = 0;
+    _panelOpen = false;
   }
 
-  // ─── Render Bell Button + Panel ───
+  // ─── Render Bell Icon in Topbar ───
   function renderBell() {
     const topbarRight = document.getElementById('topbar-right');
-    if (!topbarRight || document.getElementById('notif-bell-btn')) return;
+    if (!topbarRight) return;
 
-    const bellIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;
+    // Don't duplicate
+    if (document.getElementById('notif-bell-btn')) return;
 
-    const bellBtn = document.createElement('button');
-    bellBtn.id = 'notif-bell-btn';
-    bellBtn.className = 'notif-bell-btn';
-    bellBtn.setAttribute('aria-label', 'Notificações');
-    bellBtn.innerHTML = `${bellIcon}<span class="notif-badge hidden" id="notif-badge">0</span>`;
-
-    const panel = document.createElement('div');
-    panel.id = 'notif-panel';
-    panel.className = 'notif-panel hidden';
-    panel.innerHTML = `
-      <div class="notif-panel-header">
-        <strong>Notificações</strong>
-        <button class="btn btn-sm btn-secondary" id="notif-mark-all">Marcar lidas</button>
+    topbarRight.innerHTML = `
+      <button class="notif-bell-btn" id="notif-bell-btn" aria-label="Notificações">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="notif-badge hidden" id="notif-badge">0</span>
+      </button>
+      <div class="notif-panel hidden" id="notif-panel">
+        <div class="notif-panel-header">
+          <h4>Notificações</h4>
+          <button class="btn btn-sm btn-secondary" id="notif-mark-all">Marcar todas lidas</button>
+        </div>
+        <div class="notif-panel-body" id="notif-list">
+          <div class="flex-center" style="padding:1rem;"><div class="spinner"></div></div>
+        </div>
       </div>
-      <div class="notif-panel-body" id="notif-panel-body">
-        <div class="flex-center"><div class="spinner"></div></div>
-      </div>
-    `;
-
-    // Insert bell before theme toggle (first child of topbar-right)
-    topbarRight.insertBefore(panel, topbarRight.firstChild);
-    topbarRight.insertBefore(bellBtn, topbarRight.firstChild);
+    ` + topbarRight.innerHTML;
 
     // Toggle panel
-    bellBtn.addEventListener('click', (e) => {
+    document.getElementById('notif-bell-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      const isOpen = !panel.classList.contains('hidden');
-      panel.classList.toggle('hidden');
-      if (!isOpen) loadNotifications();
+      togglePanel();
     });
 
-    // Close on outside click
+    // Close panel on outside click
     document.addEventListener('click', (e) => {
-      if (!panel.contains(e.target) && e.target !== bellBtn && !bellBtn.contains(e.target)) {
-        panel.classList.add('hidden');
+      if (_panelOpen && !e.target.closest('#notif-panel') && !e.target.closest('#notif-bell-btn')) {
+        closePanel();
       }
     });
 
@@ -73,60 +69,59 @@ const Notifications = (() => {
     document.getElementById('notif-mark-all')?.addEventListener('click', markAllRead);
   }
 
+  // ─── Toggle Panel ───
+  function togglePanel() {
+    _panelOpen = !_panelOpen;
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+
+    if (_panelOpen) {
+      panel.classList.remove('hidden');
+      loadNotifications();
+    } else {
+      panel.classList.add('hidden');
+    }
+  }
+
+  function closePanel() {
+    _panelOpen = false;
+    document.getElementById('notif-panel')?.classList.add('hidden');
+  }
+
   // ─── Load Unread Count ───
   async function loadUnreadCount() {
-    const userId = State.get('user')?.id;
-    if (!userId) return;
-
     try {
-      const { count, error } = await sb
-        .from('notifications')
+      const userId = State.get('user')?.id;
+      if (!userId) return;
+
+      const { count } = await sb.from('notifications')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('read', false);
 
-      if (!error) {
-        _unreadCount = count || 0;
-        updateBadge();
-      }
-    } catch (e) {
-      console.warn('[Notifications] Count error:', e);
-    }
-  }
-
-  // ─── Update Badge Display ───
-  function updateBadge() {
-    const badge = document.getElementById('notif-badge');
-    if (!badge) return;
-
-    if (_unreadCount > 0) {
-      badge.textContent = _unreadCount > 99 ? '99+' : _unreadCount;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
+      updateBadge(count ?? 0);
+    } catch (err) {
+      console.warn('[Notif] Count error:', err);
     }
   }
 
   // ─── Load Notifications List ───
   async function loadNotifications() {
-    const body = document.getElementById('notif-panel-body');
-    if (!body) return;
-
-    const userId = State.get('user')?.id;
-    if (!userId) return;
+    const listEl = document.getElementById('notif-list');
+    if (!listEl) return;
 
     try {
-      const { data, error } = await sb
-        .from('notifications')
+      const userId = State.get('user')?.id;
+      if (!userId) return;
+
+      const { data: notifs } = await sb.from('notifications')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        body.innerHTML = `
+      if (!notifs?.length) {
+        listEl.innerHTML = `
           <div class="notif-empty">
             <p class="text-muted text-sm">Nenhuma notificação</p>
           </div>
@@ -134,108 +129,134 @@ const Notifications = (() => {
         return;
       }
 
-      body.innerHTML = data.map(n => {
-        const typeIcons = {
-          success: Icons.success,
-          error: Icons.error,
-          warning: Icons.warning,
-          info: Icons.info
-        };
-        const icon = typeIcons[n.type] || typeIcons.info;
-        const timeAgo = dayjs(n.created_at).fromNow ? dayjs(n.created_at).fromNow() : formatDate(n.created_at);
+      const typeIcons = {
+        success: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+        error: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+        warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+      };
 
-        return `
-          <div class="notif-item ${n.read ? '' : 'notif-unread'}" data-id="${n.id}">
-            <div class="notif-item-icon notif-type-${n.type || 'info'}">${icon}</div>
-            <div class="notif-item-content">
-              <div class="notif-item-title">${sanitizeHTML(n.title)}</div>
-              <div class="notif-item-body">${sanitizeHTML(n.body)}</div>
-              <div class="notif-item-time">${timeAgo}</div>
-            </div>
-            ${!n.read ? '<div class="notif-dot"></div>' : ''}
+      listEl.innerHTML = notifs.map(n => `
+        <div class="notif-item ${n.read ? '' : 'notif-unread'}" data-notif-id="${n.id}" ${n.action_url ? `data-url="${sanitizeHTML(n.action_url)}"` : ''}>
+          <div class="notif-icon">${typeIcons[n.type] || typeIcons.info}</div>
+          <div class="notif-content">
+            <div class="notif-title">${sanitizeHTML(n.title)}</div>
+            ${n.body ? `<div class="notif-body">${sanitizeHTML(n.body)}</div>` : ''}
+            <div class="notif-time">${formatRelative(n.created_at)}</div>
           </div>
-        `;
-      }).join('');
+          ${!n.read ? '<div class="notif-dot"></div>' : ''}
+        </div>
+      `).join('');
 
-      // Click to navigate if action_url
-      body.querySelectorAll('.notif-item').forEach(item => {
+      // Click handler — mark as read + navigate
+      listEl.querySelectorAll('.notif-item').forEach(item => {
         item.addEventListener('click', async () => {
-          const notif = data.find(n => n.id === item.dataset.id);
-          if (notif && !notif.read) {
-            await sb.from('notifications').update({ read: true }).eq('id', notif.id);
-            _unreadCount = Math.max(0, _unreadCount - 1);
-            updateBadge();
+          const notifId = item.dataset.notifId;
+          const url = item.dataset.url;
+
+          // Mark as read
+          if (item.classList.contains('notif-unread')) {
             item.classList.remove('notif-unread');
             item.querySelector('.notif-dot')?.remove();
+            await sb.from('notifications').update({ read: true }).eq('id', notifId);
+            _unreadCount = Math.max(0, _unreadCount - 1);
+            updateBadge(_unreadCount);
           }
-          if (notif?.action_url) {
-            document.getElementById('notif-panel')?.classList.add('hidden');
-            window.location.hash = notif.action_url;
+
+          // Navigate if action URL
+          if (url) {
+            closePanel();
+            window.location.hash = url;
           }
         });
       });
 
-    } catch (e) {
-      console.error('[Notifications] Load error:', e);
-      body.innerHTML = '<p class="text-muted text-sm" style="padding:16px;">Erro ao carregar.</p>';
+    } catch (err) {
+      console.warn('[Notif] Load error:', err);
+      listEl.innerHTML = '<p class="text-muted text-sm" style="padding:1rem;">Erro ao carregar.</p>';
     }
   }
 
-  // ─── Mark All as Read ───
+  // ─── Mark All Read ───
   async function markAllRead() {
-    const userId = State.get('user')?.id;
-    if (!userId) return;
-
     try {
+      const userId = State.get('user')?.id;
+      if (!userId) return;
+
       await sb.from('notifications')
         .update({ read: true })
         .eq('user_id', userId)
         .eq('read', false);
 
-      _unreadCount = 0;
-      updateBadge();
-      loadNotifications();
-    } catch (e) {
-      console.warn('[Notifications] Mark read error:', e);
+      updateBadge(0);
+      // Refresh list
+      document.querySelectorAll('.notif-unread').forEach(el => {
+        el.classList.remove('notif-unread');
+        el.querySelector('.notif-dot')?.remove();
+      });
+      Toast.info('Todas as notificações marcadas como lidas.');
+    } catch (err) {
+      console.warn('[Notif] Mark all error:', err);
     }
   }
 
-  // ─── Subscribe to Realtime ───
+  // ─── Update Badge ───
+  function updateBadge(count) {
+    _unreadCount = count;
+    const badge = document.getElementById('notif-badge');
+    if (!badge) return;
+
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // ─── Subscribe to Real-time Notifications ───
   function subscribeRealtime() {
     const userId = State.get('user')?.id;
     if (!userId) return;
 
-    _channel = sb
-      .channel('notifications-' + userId)
+    _subscription = sb
+      .channel('notif-' + userId)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
-        const notif = payload.new;
         _unreadCount++;
-        updateBadge();
-        Toast.info(notif.title || 'Nova notificação');
+        updateBadge(_unreadCount);
+
+        // Show toast for new notification
+        const n = payload.new;
+        if (n?.title) {
+          const toastType = n.type === 'error' ? 'error' : n.type === 'warning' ? 'warning' : n.type === 'success' ? 'success' : 'info';
+          Toast[toastType](n.title);
+        }
+
+        // Refresh list if panel is open
+        if (_panelOpen) loadNotifications();
       })
       .subscribe();
   }
 
-  // ─── Create Notification (for admin use) ───
-  async function create(userId, title, body, type = 'info', actionUrl = null) {
+  // ─── Create notification (for admin use from JS) ───
+  async function create(userId, title, body = '', type = 'info', actionUrl = '') {
     try {
       await sb.from('notifications').insert({
         user_id: userId,
         title,
         body,
         type,
-        action_url: actionUrl,
-        read: false
+        action_url: actionUrl
       });
-    } catch (e) {
-      console.warn('[Notifications] Create error:', e);
+    } catch (err) {
+      console.warn('[Notif] Create error:', err);
     }
   }
 
-  return { init, destroy, create };
+  return { init, destroy, create, loadUnreadCount };
 })();
