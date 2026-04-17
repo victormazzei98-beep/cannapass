@@ -250,6 +250,9 @@ const Admin = (() => {
 
   async function loadCharts() {
     try {
+      // Lazy load Chart.js
+      await LazyLoad.chartJS();
+
       // Destroy previous instances
       if (chartRegistrations) { chartRegistrations.destroy(); chartRegistrations = null; }
       if (chartStatus) { chartStatus.destroy(); chartStatus = null; }
@@ -631,7 +634,10 @@ const Admin = (() => {
     }
   }
 
-  function initBrazilMap(container, geojson, routeData) {
+  async function initBrazilMap(container, geojson, routeData) {
+    // Lazy load Leaflet
+    await LazyLoad.leaflet();
+
     // Destroy previous map instance
     if (transportMap) {
       transportMap.remove();
@@ -1328,7 +1334,6 @@ const Admin = (() => {
         }
       });
       if (error) console.warn('[Admin] Notification send warning:', error);
-      else console.log('[Admin] Notification sent:', data);
     } catch (err) {
       console.warn('[Admin] Notification error (non-blocking):', err);
     }

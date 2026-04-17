@@ -18,6 +18,32 @@ const Patient = (() => {
   };
   let uploadedFiles = {};
   let isRenewalMode = false;
+  let _dashboardRefreshTimer = null;
+  const WIZARD_DRAFT_KEY = 'cannapass-wizard-draft';
+
+  function saveWizardDraft() {
+    try {
+      const draft = { wizardData, wizardStep, savedAt: Date.now() };
+      localStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(draft));
+    } catch { /* ignore quota errors */ }
+  }
+
+  function loadWizardDraft() {
+    try {
+      const raw = localStorage.getItem(WIZARD_DRAFT_KEY);
+      if (!raw) return null;
+      const draft = JSON.parse(raw);
+      if (Date.now() - draft.savedAt > 86400000) {
+        localStorage.removeItem(WIZARD_DRAFT_KEY);
+        return null;
+      }
+      return draft;
+    } catch { return null; }
+  }
+
+  function clearWizardDraft() {
+    localStorage.removeItem(WIZARD_DRAFT_KEY);
+  }
 
   function render(page, container) {
     switch (page) {
@@ -784,6 +810,7 @@ const Patient = (() => {
       State.set('patient', patient);
       uploadedFiles = {};
       wizardStep = 1;
+      clearWizardDraft();
 
       if (isRenewalMode) {
         isRenewalMode = false;

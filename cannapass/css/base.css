@@ -138,5 +138,27 @@ img { max-width: 100%; height: auto; }
 }
 
 .animate-in {
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.25s ease forwards;
+}
+
+.page-exit {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* Skip-to-content link (accessibility) */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 10000;
+  background: var(--green);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+}
+.skip-to-content:focus {
+  top: 8px;
 }

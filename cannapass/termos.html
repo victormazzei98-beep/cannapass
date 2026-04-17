@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Termos de Uso — Cannapass. Plataforma digital de rastreamento do transporte legal de cannabis medicinal no Brasil.">
+  <meta name="theme-color" content="#22c55e">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>Termos de Uso — Cannapass</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #070c09;
+      --bg-2: #0a0f0d;
+      --surface: #111a15;
+      --surface-2: #162019;
+      --surface-3: #1a2820;
+      --border: #1e3024;
+      --border-2: #264030;
+      --green: #3dd68c;
+      --green-hover: #2bc47a;
+      --green-2: #22a86a;
+      --green-3: #0d6640;
+      --green-4: #0a4f32;
+      --green-soft: rgba(61, 214, 140, 0.08);
+      --green-glow: rgba(61, 214, 140, 0.15);
+      --red: #e05555;
+      --red-soft: rgba(224, 85, 85, 0.06);
+      --gold: #f0c060;
+      --text: #e8f2ec;
+      --text-2: #c0d8cc;
+      --muted: #6a9478;
+      --font-heading: 'Syne', sans-serif;
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text-2);
+      line-height: 1.75;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a { color: var(--green); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--green-hover); text-decoration: underline; }
+
+    /* ─── Header ─── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(7, 12, 9, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .logo:hover { text-decoration: none; color: var(--text); }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--green-soft);
+      border: 1px solid var(--green-3);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green);
+    }
+
+    .logo-text {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .header-back {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+
+    .header-back:hover {
+      color: var(--green);
+      border-color: var(--green-3);
+      background: var(--green-soft);
+      text-decoration: none;
+    }
+
+    /* ─── Main Container ─── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ─── Page Title ─── */
+    .page-title {
+      font-family: var(--font-heading);
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .page-subtitle {
+      font-size: 1rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .page-update {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: var(--radius-xs);
+      margin-bottom: 40px;
+    }
+
+    .page-update svg { color: var(--green-2); }
+
+    /* ─── Table of Contents ─── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 48px;
+    }
+
+    .toc-title {
+      font-family: var(--font-heading);
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toc-title svg { color: var(--green); }
+
+    .toc-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 32px;
+    }
+
+    .toc-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .toc-list a {
+      font-size: 0.875rem;
+      color: var(--text-2);
+      padding: 4px 0;
+      display: block;
+      transition: color 0.2s;
+    }
+
+    .toc-list a:hover { color: var(--green); text-decoration: none; }
+
+    .toc-number {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--green-2);
+      min-width: 24px;
+    }
+
+    /* ─── Article Sections ─── */
+    .article {
+      margin-bottom: 40px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .article:last-child { border-bottom: none; }
+
+    .article-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .article-number {
+      font-family: var(--font-heading);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--green);
+      background: var(--green-soft);
+      border: 1px solid var(--green-3);
+      padding: 4px 10px;
+      border-radius: var(--radius-xs);
+      white-space: nowrap;
+    }
+
+    .article-title {
+      font-family: var(--font-heading);
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+    }
+
+    .article p {
+      margin-bottom: 12px;
+      color: var(--text-2);
+    }
+
+    .article p:last-child { margin-bottom: 0; }
+
+    .article strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ─── Subsections ─── */
+    .subsection {
+      margin-top: 20px;
+      margin-bottom: 16px;
+    }
+
+    .subsection-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+      padding-left: 12px;
+      border-left: 3px solid var(--green-3);
+    }
+
+    /* ─── Lists ─── */
+    .legal-list {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0;
+    }
+
+    .legal-list li {
+      position: relative;
+      padding: 6px 0 6px 24px;
+      color: var(--text-2);
+      font-size: 0.9375rem;
+    }
+
+    .legal-list li::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 15px;
+      width: 5px;
+      height: 5px;
+      background: var(--green-2);
+      border-radius: 50%;
+    }
+
+    .legal-list--roman { counter-reset: roman; }
+
+    .legal-list--roman li {
+      counter-increment: roman;
+      padding-left: 32px;
+    }
+
+    .legal-list--roman li::before {
+      content: counter(roman, lower-roman) ".";
+      position: absolute;
+      left: 0;
+      top: 6px;
+      width: auto;
+      height: auto;
+      background: none;
+      border-radius: 0;
+      color: var(--green-2);
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+
+    /* ─── Definition Items ─── */
+    .def-list {
+      display: grid;
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .def-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+    }
+
+    .def-term {
+      font-weight: 600;
+      color: var(--green);
+      font-size: 0.9375rem;
+      margin-bottom: 4px;
+    }
+
+    .def-desc {
+      color: var(--text-2);
+      font-size: 0.9375rem;
+    }
+
+    /* ─── Info Boxes ─── */
+    .info-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+
+    .info-box--highlight {
+      border-color: var(--green-3);
+      background: var(--green-soft);
+    }
+
+    .info-box--warning {
+      border-color: #3a2a10;
+      background: rgba(240, 192, 96, 0.06);
+    }
+
+    .info-box--danger {
+      border-color: rgba(224, 85, 85, 0.2);
+      background: var(--red-soft);
+      border-left: 3px solid var(--red);
+    }
+
+    .info-box p { margin-bottom: 6px; }
+    .info-box p:last-child { margin-bottom: 0; }
+
+    .info-box .label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-box--warning .label { color: var(--gold); }
+    .info-box--danger .label { color: var(--red); }
+
+    /* ─── LGPD Reference Tags ─── */
+    .lgpd-ref {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--green-2);
+      background: var(--green-soft);
+      border: 1px solid var(--green-3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 4px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    /* ─── Footer ─── */
+    .footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .footer-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    .footer-brand svg { color: var(--green-3); }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    .footer-links a:hover { color: var(--green); }
+
+    /* ─── Print ─── */
+    @media print {
+      .header, .toc, .footer { display: none; }
+      body { background: #fff; color: #222; font-size: 11pt; }
+      .container { max-width: 100%; padding: 0; }
+      .article { break-inside: avoid; border-color: #ddd; }
+      .article-title { color: #111; }
+      .article-number { color: #1a7a45; border-color: #ccc; background: #f0f8f4; }
+      a { color: #1a7a45; }
+      .info-box { background: #f8f8f8; border-color: #ddd; }
+      .def-item { background: #f8f8f8; border-color: #ddd; }
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 640px) {
+      .page-title { font-size: 1.625rem; }
+      .article-title { font-size: 1.125rem; }
+      .article-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+      .toc-list { grid-template-columns: 1fr; }
+      .toc { padding: 20px; }
+      .container { padding: 32px 16px 64px; }
+      .def-list { grid-template-columns: 1fr; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Header ═══ -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="landing.html" class="logo">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.9C15.5 4.9 17 3.5 19 2c1 2 2 4.5 1 8-1 3.5-2.5 5-4 6.5-1.5 1.5-3 2.5-5 3.5z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+        </div>
+        <span class="logo-text">Cannapass</span>
+      </a>
+      <a href="landing.html" class="header-back">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        Voltar
+      </a>
+    </div>
+  </header>
+
+  <!-- ═══ Content ═══ -->
+  <main class="container">
+
+    <!-- Page Title -->
+    <h1 class="page-title">Termos de Uso</h1>
+    <p class="page-subtitle">Cannapass — Plataforma Digital de Transporte Legal de Cannabis Medicinal</p>
+    <div class="page-update">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Ultima atualizacao: Abril 2026
+    </div>
+
+    <!-- ═══ Table of Contents ═══ -->
+    <nav class="toc" aria-label="Sumario">
+      <div class="toc-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Sumario
+      </div>
+      <ol class="toc-list">
+        <li><span class="toc-number">Art. 1</span> <a href="#art1">Definicoes</a></li>
+        <li><span class="toc-number">Art. 2</span> <a href="#art2">Objeto</a></li>
+        <li><span class="toc-number">Art. 3</span> <a href="#art3">Cadastro e Acesso</a></li>
+        <li><span class="toc-number">Art. 4</span> <a href="#art4">Obrigacoes do Usuario</a></li>
+        <li><span class="toc-number">Art. 5</span> <a href="#art5">Portal do Paciente</a></li>
+        <li><span class="toc-number">Art. 6</span> <a href="#art6">Portal do Agente</a></li>
+        <li><span class="toc-number">Art. 7</span> <a href="#art7">Portal do Administrador</a></li>
+        <li><span class="toc-number">Art. 8</span> <a href="#art8">QR Codes</a></li>
+        <li><span class="toc-number">Art. 9</span> <a href="#art9">Documentos</a></li>
+        <li><span class="toc-number">Art. 10</span> <a href="#art10">Propriedade Intelectual</a></li>
+        <li><span class="toc-number">Art. 11</span> <a href="#art11">Protecao de Dados (LGPD)</a></li>
+        <li><span class="toc-number">Art. 12</span> <a href="#art12">Cannabis e Legislacao</a></li>
+        <li><span class="toc-number">Art. 13</span> <a href="#art13">Limitacao de Responsabilidade</a></li>
+        <li><span class="toc-number">Art. 14</span> <a href="#art14">Suspensao e Cancelamento</a></li>
+        <li><span class="toc-number">Art. 15</span> <a href="#art15">Modificacoes</a></li>
+        <li><span class="toc-number">Art. 16</span> <a href="#art16">Foro</a></li>
+        <li><span class="toc-number">Art. 17</span> <a href="#art17">Disposicoes Gerais</a></li>
+      </ol>
+    </nav>
+
+    <!-- ═══ Art. 1 — Definicoes ═══ -->
+    <section class="article" id="art1">
+      <div class="article-header">
+        <span class="article-number">Art. 1</span>
+        <h2 class="article-title">Definicoes</h2>
+      </div>
+      <p>
+        Para os fins destes Termos de Uso, aplicam-se as seguintes definicoes:
+      </p>
+      <div class="def-list">
+        <div class="def-item">
+          <div class="def-term">Plataforma</div>
+          <div class="def-desc">O sistema digital Cannapass, acessivel via navegador web, destinado ao rastreamento e verificacao do transporte legal de cannabis medicinal no Brasil.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Usuario</div>
+          <div class="def-desc">Toda pessoa fisica que se cadastra e utiliza a Plataforma em qualquer uma das modalidades de acesso disponiveis (Paciente, Agente ou Administrador).</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Paciente</div>
+          <div class="def-desc">Pessoa fisica portadora de autorizacao legal para uso de cannabis medicinal, concedida pela ANVISA ou por decisao judicial (habeas corpus), que utiliza a Plataforma para registrar e comprovar o transporte legal de seu medicamento.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Agente Fiscalizador</div>
+          <div class="def-desc">Profissional autorizado (policial, agente de seguranca publica ou outro servidor designado) que utiliza a Plataforma para verificar, por meio de QR Code, a regularidade do transporte de cannabis medicinal.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Administrador</div>
+          <div class="def-desc">Usuario com permissoes elevadas responsavel pela gestao da Plataforma, incluindo gerenciamento de usuarios, monitoramento de atividades e geracao de relatorios.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">QR Code</div>
+          <div class="def-desc">Codigo de resposta rapida gerado pela Plataforma contendo informacoes verificaveis sobre o paciente, sua autorizacao legal e dados da viagem, destinado a consulta por Agentes Fiscalizadores.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 2 — Objeto ═══ -->
+    <section class="article" id="art2">
+      <div class="article-header">
+        <span class="article-number">Art. 2</span>
+        <h2 class="article-title">Objeto</h2>
+      </div>
+      <p>
+        A <strong>Cannapass</strong> e uma plataforma digital que tem por objeto facilitar e organizar o rastreamento
+        do transporte legal de cannabis medicinal no territorio brasileiro, em conformidade com a
+        <strong>Resolucao ANVISA RDC n. 327/2019</strong> e demais normas aplicaveis.
+      </p>
+      <p>
+        A Plataforma unifica e digitaliza a documentacao necessaria para o transporte legal, gerando QR Codes
+        verificaveis em tempo real por autoridades competentes em aeroportos, rodoviarias e demais pontos de fiscalizacao.
+      </p>
+      <p>
+        O servico prestado pela Cannapass compreende:
+      </p>
+      <ul class="legal-list">
+        <li>Cadastro digital de pacientes portadores de autorizacao legal para uso de cannabis medicinal</li>
+        <li>Armazenamento seguro de documentos comprobatorios (prescricao medica, autorizacao da ANVISA, decisao judicial)</li>
+        <li>Geracao de QR Codes verificaveis vinculados a viagens especificas</li>
+        <li>Portal de verificacao para agentes fiscalizadores</li>
+        <li>Painel administrativo para gestao e monitoramento da Plataforma</li>
+      </ul>
+    </section>
+
+    <!-- ═══ Art. 3 — Cadastro e Acesso ═══ -->
+    <section class="article" id="art3">
+      <div class="article-header">
+        <span class="article-number">Art. 3</span>
+        <h2 class="article-title">Cadastro e Acesso</h2>
+      </div>
+      <p>
+        Para utilizar a Plataforma, o Usuario devera realizar cadastro previo, fornecendo informacoes verdadeiras,
+        completas e atualizadas. O acesso e condicionado a autenticacao por e-mail e senha.
+      </p>
+
+      <div class="subsection">
+        <h3 class="subsection-title">3.1 Requisitos para Cadastro</h3>
+        <ul class="legal-list">
+          <li>Ser pessoa fisica maior de 18 (dezoito) anos ou legalmente emancipada</li>
+          <li>Possuir endereco de e-mail valido</li>
+          <li>Fornecer dados pessoais verdadeiros (nome completo, CPF, data de nascimento)</li>
+          <li>Para Pacientes: possuir autorizacao legal vigente para uso de cannabis medicinal</li>
+          <li>Para Agentes: possuir credenciamento institucional adequado</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">3.2 Veracidade das Informacoes</h3>
+        <p>
+          O Usuario e integralmente responsavel pela veracidade, exatidao e atualizacao das informacoes
+          fornecidas no momento do cadastro e durante toda a utilizacao da Plataforma. Informacoes falsas ou
+          desatualizadas poderao resultar na suspensao ou cancelamento imediato da conta.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">3.3 Seguranca da Conta</h3>
+        <p>
+          O Usuario e responsavel pela guarda e confidencialidade de suas credenciais de acesso (e-mail e senha).
+          Qualquer atividade realizada por meio de sua conta sera de sua inteira responsabilidade. Em caso de
+          acesso nao autorizado ou suspeita de violacao de seguranca, o Usuario devera notificar a Cannapass imediatamente.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 4 — Obrigacoes do Usuario ═══ -->
+    <section class="article" id="art4">
+      <div class="article-header">
+        <span class="article-number">Art. 4</span>
+        <h2 class="article-title">Obrigacoes do Usuario</h2>
+      </div>
+      <p>
+        Ao utilizar a Plataforma, o Usuario compromete-se a:
+      </p>
+      <ul class="legal-list--roman legal-list">
+        <li>Fornecer informacoes verdadeiras, precisas e completas em todo cadastro e interacao com a Plataforma</li>
+        <li>Manter seus dados cadastrais sempre atualizados</li>
+        <li>Realizar o upload apenas de documentos autenticos, validos e legalmente obtidos</li>
+        <li>Nao utilizar a Plataforma para fins ilicitos, fraudulentos ou que contrariem a legislacao vigente</li>
+        <li>Nao compartilhar suas credenciais de acesso com terceiros</li>
+        <li>Nao tentar acessar areas ou funcionalidades da Plataforma para as quais nao possua autorizacao</li>
+        <li>Nao interferir, comprometer ou sobrecarregar a infraestrutura tecnica da Plataforma</li>
+        <li>Nao utilizar robos, scrapers ou qualquer mecanismo automatizado para acessar a Plataforma sem autorizacao previa</li>
+        <li>Nao reproduzir, copiar ou distribuir QR Codes gerados pela Plataforma para fins diferentes daqueles para os quais foram criados</li>
+      </ul>
+      <div class="info-box info-box--warning">
+        <p class="label">Atencao</p>
+        <p>O descumprimento de qualquer das obrigacoes acima podera resultar na suspensao ou cancelamento da conta, sem prejuizo das demais medidas cabiveis nas esferas civil e criminal.</p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 5 — Portal do Paciente ═══ -->
+    <section class="article" id="art5">
+      <div class="article-header">
+        <span class="article-number">Art. 5</span>
+        <h2 class="article-title">Portal do Paciente</h2>
+      </div>
+      <p>
+        O Portal do Paciente e a area da Plataforma destinada aos usuarios portadores de autorizacao legal
+        para uso de cannabis medicinal. O cadastro completo e realizado em <strong>5 (cinco) etapas</strong>:
+      </p>
+
+      <div class="subsection">
+        <h3 class="subsection-title">5.1 Etapas do Cadastro</h3>
+        <ul class="legal-list">
+          <li><strong>Etapa 1 — Dados Pessoais:</strong> Nome completo, CPF, data de nascimento, telefone e endereco</li>
+          <li><strong>Etapa 2 — Via de Autorizacao:</strong> Selecao do tipo de autorizacao legal (Farmacia/Associacao via ANVISA ou Habeas Corpus judicial)</li>
+          <li><strong>Etapa 3 — Upload de Documentos:</strong> Envio dos documentos comprobatorios (documento de identificacao, prescricao medica ou decisao judicial)</li>
+          <li><strong>Etapa 4 — Dados do Produto:</strong> Informacoes sobre o medicamento (tipo de produto, dosagem, quantidade autorizada)</li>
+          <li><strong>Etapa 5 — Dados de Viagem:</strong> Origem, destino, datas e meio de transporte</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">5.2 Geracao de QR Code</h3>
+        <p>
+          Apos a conclusao e validacao de todas as etapas, a Plataforma gerara um QR Code unico vinculado
+          ao cadastro e a viagem informada. Este QR Code permite a verificacao em tempo real por agentes
+          fiscalizadores autorizados.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">5.3 Responsabilidade do Paciente</h3>
+        <p>
+          O Paciente e integralmente responsavel pela autenticidade dos documentos enviados e pela veracidade
+          das informacoes prestadas. A Plataforma nao realiza validacao de conteudo documental, limitando-se
+          a verificar formato e integridade dos arquivos.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 6 — Portal do Agente ═══ -->
+    <section class="article" id="art6">
+      <div class="article-header">
+        <span class="article-number">Art. 6</span>
+        <h2 class="article-title">Portal do Agente</h2>
+      </div>
+      <p>
+        O Portal do Agente e a area da Plataforma destinada aos profissionais credenciados para fiscalizacao
+        do transporte de cannabis medicinal.
+      </p>
+
+      <div class="subsection">
+        <h3 class="subsection-title">6.1 Funcionalidades</h3>
+        <ul class="legal-list">
+          <li><strong>Scanner de QR Code:</strong> Leitura e verificacao instantanea de QR Codes apresentados por pacientes</li>
+          <li><strong>Verificacao manual:</strong> Consulta por CPF ou codigo do paciente quando a leitura do QR Code nao for possivel</li>
+          <li><strong>Registro de verificacao:</strong> Toda consulta realizada e registrada automaticamente pela Plataforma</li>
+          <li><strong>Guia de procedimentos:</strong> Acesso a orientacoes sobre o protocolo de fiscalizacao</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">6.2 Limitacoes de Acesso a Dados</h3>
+        <p>
+          O Agente tera acesso exclusivamente as informacoes necessarias para a verificacao da regularidade
+          do transporte, a saber: nome do paciente, status da autorizacao, dados da viagem e validade do
+          QR Code. <strong>Dados medicos detalhados, documentos pessoais e informacoes sensiveis nao sao
+          exibidos ao Agente.</strong>
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">6.3 Protocolo de Verificacao</h3>
+        <p>
+          O Agente devera seguir o protocolo de verificacao estabelecido pela Plataforma. O resultado da
+          verificacao (status valido, expirado ou nao encontrado) sera registrado automaticamente,
+          incluindo data, hora e localizacao da consulta.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 7 — Portal do Administrador ═══ -->
+    <section class="article" id="art7">
+      <div class="article-header">
+        <span class="article-number">Art. 7</span>
+        <h2 class="article-title">Portal do Administrador</h2>
+      </div>
+      <p>
+        O Portal do Administrador e a area restrita da Plataforma destinada a gestao operacional e estrategica
+        do sistema.
+      </p>
+
+      <div class="subsection">
+        <h3 class="subsection-title">7.1 Funcionalidades do Administrador</h3>
+        <ul class="legal-list">
+          <li><strong>Dashboard:</strong> Painel com estatisticas em tempo real sobre cadastros, verificacoes e atividade da Plataforma</li>
+          <li><strong>Gestao de Usuarios:</strong> Visualizacao, edicao e moderacao de contas de Pacientes e Agentes</li>
+          <li><strong>Gestao de Verificacoes:</strong> Historico completo de todas as verificacoes realizadas na Plataforma</li>
+          <li><strong>Relatorios:</strong> Geracao de relatorios analiticos sobre uso da Plataforma, tendencias e metricas</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">7.2 Deveres do Administrador</h3>
+        <p>
+          O Administrador devera utilizar suas permissoes elevadas exclusivamente para fins de gestao legitima
+          da Plataforma, comprometendo-se a respeitar a privacidade dos usuarios e a legislacao de protecao
+          de dados vigente.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 8 — QR Codes ═══ -->
+    <section class="article" id="art8">
+      <div class="article-header">
+        <span class="article-number">Art. 8</span>
+        <h2 class="article-title">QR Codes</h2>
+      </div>
+      <p>
+        Os QR Codes gerados pela Plataforma constituem o principal mecanismo de verificacao do transporte
+        legal de cannabis medicinal e estao sujeitos as seguintes regras:
+      </p>
+
+      <div class="subsection">
+        <h3 class="subsection-title">8.1 Regras de Geracao</h3>
+        <ul class="legal-list">
+          <li>Cada QR Code e vinculado a uma viagem especifica informada pelo Paciente</li>
+          <li>A geracao do QR Code esta condicionada ao preenchimento completo de todas as etapas do cadastro</li>
+          <li>O QR Code contem um identificador unico e uma URL publica de verificacao</li>
+          <li>Nao e permitida a geracao de multiplos QR Codes para uma mesma viagem</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">8.2 Validade</h3>
+        <div class="info-box info-box--highlight">
+          <p class="label">Periodo de Validade</p>
+          <p>Cada QR Code possui validade de <strong>72 (setenta e duas) horas</strong> a partir do momento de sua geracao, correspondendo ao periodo estimado da viagem informada. Apos esse prazo, o QR Code sera automaticamente desativado.</p>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">8.3 Uso Unico por Viagem</h3>
+        <p>
+          Cada QR Code e de uso unico e vinculado exclusivamente a viagem para a qual foi gerado. Para novas
+          viagens, o Paciente devera informar novos dados de deslocamento e gerar um novo QR Code.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">8.4 URL Publica de Verificacao</h3>
+        <p>
+          Cada QR Code contem uma URL publica que permite a verificacao do status de autorizacao sem
+          necessidade de login na Plataforma. Esta URL exibe apenas as informacoes estritamente necessarias
+          para a verificacao, preservando a privacidade do Paciente.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 9 — Documentos ═══ -->
+    <section class="article" id="art9">
+      <div class="article-header">
+        <span class="article-number">Art. 9</span>
+        <h2 class="article-title">Documentos</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">9.1 Formatos Aceitos</h3>
+        <p>
+          A Plataforma aceita documentos nos seguintes formatos digitais:
+        </p>
+        <ul class="legal-list">
+          <li>PDF (Portable Document Format)</li>
+          <li>Imagens: JPEG, JPG, PNG</li>
+          <li>Tamanho maximo por arquivo: 10 MB</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">9.2 Armazenamento</h3>
+        <p>
+          Os documentos enviados sao armazenados de forma segura na infraestrutura da Supabase, com
+          criptografia em transito (TLS) e em repouso. O acesso aos documentos e restrito ao
+          Paciente titular e, quando necessario, aos Administradores da Plataforma.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">9.3 Politica de Retencao</h3>
+        <p>
+          Os documentos serao mantidos na Plataforma enquanto a conta do Paciente estiver ativa.
+          Em caso de exclusao de conta, os documentos serao removidos no prazo de <strong>30 (trinta) dias</strong>,
+          ressalvados os casos em que a retencao for exigida por obrigacao legal ou regulatoria.
+        </p>
+        <p>
+          Documentos vinculados a verificacoes ja realizadas poderao ter seus metadados mantidos para fins
+          de auditoria e prestacao de contas, em conformidade com a legislacao aplicavel.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 10 — Propriedade Intelectual ═══ -->
+    <section class="article" id="art10">
+      <div class="article-header">
+        <span class="article-number">Art. 10</span>
+        <h2 class="article-title">Propriedade Intelectual</h2>
+      </div>
+      <p>
+        Todos os direitos de propriedade intelectual relativos a Plataforma Cannapass, incluindo, mas nao
+        se limitando a: codigo-fonte, design, interface, logotipos, marcas, textos, graficos, icones,
+        algoritmos e documentacao tecnica, sao de titularidade exclusiva da <strong>Cannapass</strong>.
+      </p>
+      <p>
+        E expressamente vedado ao Usuario:
+      </p>
+      <ul class="legal-list--roman legal-list">
+        <li>Reproduzir, copiar, modificar, adaptar ou criar obras derivadas da Plataforma ou de seus componentes</li>
+        <li>Descompilar, realizar engenharia reversa ou tentar extrair o codigo-fonte da Plataforma</li>
+        <li>Utilizar as marcas, logotipos ou identidade visual da Cannapass sem autorizacao previa e expressa por escrito</li>
+        <li>Sublicenciar, transferir ou ceder a terceiros qualquer direito relacionado a Plataforma</li>
+      </ul>
+      <p>
+        A utilizacao da Plataforma nao confere ao Usuario qualquer direito de propriedade intelectual,
+        sendo concedida apenas uma licenca limitada, nao exclusiva, intransferivel e revogavel para uso
+        pessoal da Plataforma conforme estes Termos.
+      </p>
+    </section>
+
+    <!-- ═══ Art. 11 — Protecao de Dados (LGPD) ═══ -->
+    <section class="article" id="art11">
+      <div class="article-header">
+        <span class="article-number">Art. 11</span>
+        <h2 class="article-title">Protecao de Dados (LGPD)</h2>
+      </div>
+      <p>
+        A Cannapass esta comprometida com a protecao dos dados pessoais de seus Usuarios, em conformidade
+        com a <strong>Lei Geral de Protecao de Dados Pessoais (LGPD)</strong>, Lei n. 13.709/2018.
+      </p>
+
+      <div class="subsection">
+        <h3 class="subsection-title">11.1 Controlador dos Dados</h3>
+        <p>
+          A Cannapass atua como controladora dos dados pessoais tratados por meio da Plataforma,
+          nos termos do Art. 5, VI, da LGPD. <span class="lgpd-ref">LGPD Art. 5, VI</span>
+        </p>
+        <div class="info-box info-box--highlight">
+          <p><strong>E-mail de contato:</strong> <a href="mailto:contato@cannapass.vercel.app">contato@cannapass.vercel.app</a></p>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">11.2 Base Legal para Tratamento</h3>
+        <p>
+          O tratamento de dados pessoais pela Cannapass fundamenta-se nas seguintes bases legais: <span class="lgpd-ref">LGPD Art. 7</span>
+        </p>
+        <ul class="legal-list">
+          <li><strong>Consentimento do titular:</strong> para cadastro e uso da Plataforma (Art. 7, I)</li>
+          <li><strong>Cumprimento de obrigacao legal:</strong> para atendimento a requisitos regulatorios (Art. 7, II)</li>
+          <li><strong>Exercicio regular de direitos:</strong> em processos judiciais e administrativos (Art. 7, VI)</li>
+          <li><strong>Tutela da saude:</strong> para dados relacionados a saude do Paciente (Art. 11, II, f)</li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">11.3 Politica de Privacidade</h3>
+        <p>
+          Para informacoes detalhadas sobre coleta, tratamento, armazenamento e compartilhamento de dados
+          pessoais, consulte nossa <a href="privacidade.html">Politica de Privacidade</a>, parte integrante
+          destes Termos de Uso.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 12 — Cannabis e Legislacao ═══ -->
+    <section class="article" id="art12">
+      <div class="article-header">
+        <span class="article-number">Art. 12</span>
+        <h2 class="article-title">Cannabis e Legislacao</h2>
+      </div>
+
+      <div class="info-box info-box--danger">
+        <p class="label">Aviso Importante</p>
+        <p>
+          A Cannapass <strong>NAO autoriza, prescreve, recomenda ou comercializa</strong> cannabis ou qualquer
+          substancia controlada. A Plataforma e exclusivamente uma ferramenta de <strong>rastreamento e verificacao
+          documental</strong> do transporte legal de cannabis medicinal.
+        </p>
+      </div>
+
+      <p>
+        A utilizacao da Plataforma pressupoe que o Paciente ja possui autorizacao legal previa e vigente
+        para o uso e transporte de cannabis medicinal, obtida por uma das seguintes vias:
+      </p>
+      <ul class="legal-list">
+        <li><strong>Autorizacao da ANVISA:</strong> conforme Resolucao RDC n. 327/2019, que dispoe sobre os procedimentos para a concessao de autorizacao sanitaria para importacao e uso de produto a base de cannabis por pessoa fisica</li>
+        <li><strong>Habeas Corpus Judicial:</strong> decisao judicial que assegure ao paciente o direito ao uso e transporte de cannabis medicinal</li>
+      </ul>
+      <p>
+        A Cannapass opera em estrita observancia a:
+      </p>
+      <ul class="legal-list">
+        <li><strong>Lei n. 11.343/2006</strong> — Lei de Drogas</li>
+        <li><strong>Resolucao ANVISA RDC n. 327/2019</strong> — Regulamentacao de cannabis medicinal</li>
+        <li><strong>Constituicao Federal</strong> — Direitos fundamentais a saude e a dignidade da pessoa humana</li>
+      </ul>
+      <p>
+        O Usuario reconhece que a existencia de seu cadastro na Plataforma nao constitui, por si so,
+        autorizacao para porte ou transporte de cannabis, sendo indispensavel a documentacao legal original
+        em todas as circunstancias.
+      </p>
+    </section>
+
+    <!-- ═══ Art. 13 — Limitacao de Responsabilidade ═══ -->
+    <section class="article" id="art13">
+      <div class="article-header">
+        <span class="article-number">Art. 13</span>
+        <h2 class="article-title">Limitacao de Responsabilidade</h2>
+      </div>
+      <p>
+        A Cannapass nao sera responsavel, em nenhuma hipotese, por:
+      </p>
+      <ul class="legal-list--roman legal-list">
+        <li>Apreensao, confisco ou retencao de produtos ou documentos por autoridades policiais ou sanitarias, ainda que o Paciente possua cadastro ativo e QR Code valido na Plataforma</li>
+        <li>Problemas juridicos, administrativos ou penais decorrentes do uso, porte ou transporte de cannabis, mesmo que medicinal</li>
+        <li>Autenticidade, validade ou regularidade dos documentos enviados pelo Paciente a Plataforma</li>
+        <li>Decisoes tomadas por Agentes Fiscalizadores com base nas informacoes verificadas na Plataforma</li>
+        <li>Danos diretos, indiretos, incidentais, especiais, consequenciais ou punitivos decorrentes do uso ou impossibilidade de uso da Plataforma</li>
+        <li>Interrupcoes temporarias do servico causadas por manutencao, atualizacoes ou eventos de forca maior</li>
+        <li>Acoes de terceiros que acessem a conta do Usuario por falha na guarda de credenciais</li>
+      </ul>
+      <div class="info-box info-box--warning">
+        <p class="label">Limitacao</p>
+        <p>A Plataforma e fornecida "no estado em que se encontra" (as is). A Cannapass nao garante que o servico sera ininterrupto, livre de erros ou que atendera a todas as expectativas do Usuario.</p>
+      </div>
+    </section>
+
+    <!-- ═══ Art. 14 — Suspensao e Cancelamento ═══ -->
+    <section class="article" id="art14">
+      <div class="article-header">
+        <span class="article-number">Art. 14</span>
+        <h2 class="article-title">Suspensao e Cancelamento</h2>
+      </div>
+      <p>
+        A Cannapass reserva-se o direito de suspender ou cancelar a conta de qualquer Usuario, a seu exclusivo criterio, nos seguintes casos:
+      </p>
+      <ul class="legal-list">
+        <li>Violacao de qualquer disposicao destes Termos de Uso</li>
+        <li>Fornecimento de informacoes falsas, imprecisas ou fraudulentas</li>
+        <li>Upload de documentos falsificados, adulterados ou obtidos de forma ilicita</li>
+        <li>Uso da Plataforma para fins ilicitos ou contrarios a sua finalidade</li>
+        <li>Tentativa de acesso nao autorizado a areas restritas ou dados de terceiros</li>
+        <li>Conduta que coloque em risco a seguranca ou integridade da Plataforma ou de outros Usuarios</li>
+        <li>Determinacao judicial ou administrativa</li>
+        <li>Inatividade prolongada da conta por periodo superior a 12 (doze) meses</li>
+      </ul>
+      <p>
+        A suspensao ou cancelamento podera ser precedida de notificacao ao Usuario, salvo nos casos de
+        urgencia ou gravidade que justifiquem acao imediata. O Usuario podera solicitar a reativacao de
+        sua conta mediante analise e aprovacao da equipe administrativa.
+      </p>
+    </section>
+
+    <!-- ═══ Art. 15 — Modificacoes ═══ -->
+    <section class="article" id="art15">
+      <div class="article-header">
+        <span class="article-number">Art. 15</span>
+        <h2 class="article-title">Modificacoes</h2>
+      </div>
+      <p>
+        A Cannapass reserva-se o direito de modificar, a qualquer tempo, os presentes Termos de Uso,
+        visando seu aprimoramento e adequacao a eventuais alteracoes legislativas ou regulatorias.
+      </p>
+      <p>
+        Em caso de alteracoes substanciais, os Usuarios serao notificados por meio de:
+      </p>
+      <ul class="legal-list">
+        <li>Aviso destacado na interface da Plataforma</li>
+        <li>Comunicacao por e-mail para o endereco cadastrado</li>
+        <li>Atualizacao da data de "ultima atualizacao" no topo deste documento</li>
+      </ul>
+      <p>
+        O uso continuado da Plataforma apos a publicacao das alteracoes constituira aceitacao tacita dos
+        novos termos. Caso o Usuario nao concorde com as modificacoes, devera cessar imediatamente a
+        utilizacao da Plataforma e solicitar a exclusao de sua conta.
+      </p>
+    </section>
+
+    <!-- ═══ Art. 16 — Foro ═══ -->
+    <section class="article" id="art16">
+      <div class="article-header">
+        <span class="article-number">Art. 16</span>
+        <h2 class="article-title">Foro</h2>
+      </div>
+      <p>
+        Para a resolucao de quaisquer controversias oriundas dos presentes Termos de Uso, fica eleito
+        o foro da <strong>Comarca de Sao Paulo, Estado de Sao Paulo</strong>, com exclusao de qualquer
+        outro, por mais privilegiado que seja.
+      </p>
+      <p>
+        As partes concordam em buscar, preferencialmente, a solucao amigavel de eventuais conflitos antes
+        de recorrer ao Poder Judiciario. Aplica-se a legislacao da Republica Federativa do Brasil para
+        a interpretacao e cumprimento destes Termos.
+      </p>
+    </section>
+
+    <!-- ═══ Art. 17 — Disposicoes Gerais ═══ -->
+    <section class="article" id="art17">
+      <div class="article-header">
+        <span class="article-number">Art. 17</span>
+        <h2 class="article-title">Disposicoes Gerais</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">17.1 Independencia das Clausulas (Severabilidade)</h3>
+        <p>
+          Caso qualquer disposicao destes Termos de Uso seja considerada invalida, ilegal ou inexequivel
+          por autoridade competente, as demais disposicoes permanecerao em pleno vigor e efeito. A
+          disposicao invalida sera substituida por outra que, na medida do possivel, atinja a finalidade
+          originalmente pretendida.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">17.2 Tolerancia e Renuncia</h3>
+        <p>
+          A eventual tolerancia da Cannapass em relacao a qualquer descumprimento destes Termos nao
+          constituira renuncia, novacao ou precedente, podendo o direito ser exercido a qualquer momento.
+          A nao exigencia de cumprimento de qualquer obrigacao nao impedira a Cannapass de exigir seu
+          cumprimento posterior.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">17.3 Integralidade do Acordo</h3>
+        <p>
+          Estes Termos de Uso, juntamente com a <a href="privacidade.html">Politica de Privacidade</a>,
+          constituem o acordo integral entre o Usuario e a Cannapass no que diz respeito a utilizacao da
+          Plataforma, substituindo todos os entendimentos, comunicacoes e acordos anteriores, sejam
+          escritos ou verbais.
+        </p>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">17.4 Cessao</h3>
+        <p>
+          O Usuario nao podera ceder ou transferir seus direitos ou obrigacoes decorrentes destes Termos
+          a terceiros sem o consentimento previo e por escrito da Cannapass. A Cannapass podera ceder
+          ou transferir livremente seus direitos e obrigacoes a qualquer empresa do mesmo grupo economico
+          ou a sucessora em caso de fusao, aquisicao ou reestruturacao societaria.
+        </p>
+      </div>
+
+      <div class="info-box info-box--highlight" style="margin-top: 24px;">
+        <p class="label">Vigencia</p>
+        <p>Estes Termos de Uso entram em vigor na data de seu aceite pelo Usuario e permanecem vigentes por prazo indeterminado, enquanto o Usuario mantiver sua conta ativa na Plataforma.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ═══ Footer ═══ -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.9C15.5 4.9 17 3.5 19 2c1 2 2 4.5 1 8-1 3.5-2.5 5-4 6.5-1.5 1.5-3 2.5-5 3.5z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+        &copy; 2024-2026 Cannapass. Todos os direitos reservados.
+      </div>
+      <nav class="footer-links">
+        <a href="landing.html">Inicio</a>
+        <a href="privacidade.html">Privacidade</a>
+      </nav>
+    </div>
+  </footer>
+
+</body>
+</html>

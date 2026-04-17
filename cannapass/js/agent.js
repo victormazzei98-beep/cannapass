@@ -127,6 +127,9 @@ const Agent = (() => {
 
   async function startScanner() {
     try {
+      // Lazy load QR scanner lib
+      await LazyLoad.qrScanner();
+
       const readerEl = document.getElementById('qr-reader');
       if (!readerEl) return;
 
@@ -185,6 +188,71 @@ const Agent = (() => {
     // Otherwise treat entire input as token
     return input.trim();
   }
+
+  // ═══════════════════════════════════════════
+  //  OFFLINE CACHE (IndexedDB)
+  // ═══════════════════════════════════════════
+  const OfflineCache = (() => {
+    const DB_NAME = 'cannapass-agent-cache';
+    const STORE = 'verifications';
+    const DB_VERSION = 1;
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE)) {
+            db.createObjectStore(STORE, { keyPath: 'token' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function save(token, data) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put({ token, data, cachedAt: new Date().toISOString() });
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        db.close();
+      } catch (e) { console.warn('[OfflineCache] save error:', e); }
+    }
+
+    const TTL_HOURS = 24; // cached results expire after 24h
+
+    async function get(token) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE, 'readonly');
+        const req = tx.objectStore(STORE).get(token);
+        const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+        db.close();
+        if (!result) return null;
+        // Check TTL
+        const ageHours = (Date.now() - new Date(result.cachedAt).getTime()) / (1000 * 60 * 60);
+        if (ageHours > TTL_HOURS) {
+          remove(token); // async cleanup, don't await
+          return null;
+        }
+        return result;
+      } catch (e) { console.warn('[OfflineCache] get error:', e); return null; }
+    }
+
+    async function remove(token) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).delete(token);
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        db.close();
+      } catch (e) { /* ignore */ }
+    }
+
+    return { save, get };
+  })();
 
   // ═══════════════════════════════════════════
   //  VERIFICATION LOGIC
@@ -267,12 +335,29 @@ const Agent = (() => {
       // Record verification — use qr_id from RPC
       await recordVerification(qrRecord.qr_id, token, qrRecord.patient_name, result);
 
+      // Cache successful verification for offline use
+      if (result === 'valid' || result === 'expired') {
+        OfflineCache.save(token, { result, qrRecord, patientData, travelData, documents });
+      }
+
       // Render result
       renderVerificationResult(resultArea, result, qrRecord, patientData, travelData, documents);
 
     } catch (err) {
       console.error('[Verification]', err);
-      Toast.error('Erro ao verificar token. Tente novamente.');
+
+      // ─── Offline fallback: try cached result ───
+      if (!navigator.onLine) {
+        const cached = await OfflineCache.get(token);
+        if (cached) {
+          const age = dayjs().diff(dayjs(cached.cachedAt), 'hour');
+          Toast.warning(`Sem conexão — exibindo resultado em cache (${age < 1 ? 'agora' : age + 'h atrás'})`);
+          renderVerificationResult(resultArea, cached.data.result, cached.data.qrRecord, cached.data.patientData, cached.data.travelData, cached.data.documents, true);
+          return;
+        }
+      }
+
+      Toast.error('Erro ao verificar token. Verifique sua conexão.');
       resultArea.innerHTML = '';
     }
   }
@@ -300,7 +385,7 @@ const Agent = (() => {
     }
   }
 
-  function renderVerificationResult(container, result, qrRecord, patientData, travelData, documents) {
+  function renderVerificationResult(container, result, qrRecord, patientData, travelData, documents, isOffline = false) {
     const statusConfig = {
       valid: {
         label: 'VÁLIDO',
@@ -327,12 +412,22 @@ const Agent = (() => {
 
     const cfg = statusConfig[result] || statusConfig.invalid;
 
-    let html = `
+    let html = '';
+
+    if (isOffline) {
+      html += `
+        <div style="padding:10px 14px;border-radius:8px;background:rgba(240,192,96,0.12);border:1px solid rgba(240,192,96,0.3);margin-bottom:12px;font-size:13px;display:flex;align-items:center;gap:8px;">
+          ${Icons.warning} <span><strong>Modo Offline</strong> — Resultado em cache. Verifique novamente quando houver conexão.</span>
+        </div>
+      `;
+    }
+
+    html += `
       <div class="verification-result ${cfg.cardClass}">
         <div class="verification-status">
           <div class="verification-status-icon">${cfg.icon}</div>
           <div class="verification-status-text">
-            <span class="badge ${cfg.badgeClass}">${cfg.label}</span>
+            <span class="badge ${cfg.badgeClass}">${cfg.label}${isOffline ? ' (CACHE)' : ''}</span>
             <p class="text-sm mt-sm">${cfg.description}</p>
           </div>
         </div>
@@ -1046,7 +1141,7 @@ const Agent = (() => {
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">Detalhes da Verificação</h3>
-          <button class="btn btn-sm btn-secondary" id="close-detail-btn">${Icons.x}</button>
+          <button class="btn btn-sm btn-secondary" id="close-detail-btn" aria-label="Fechar detalhes">${Icons.x}</button>
         </div>
         <div class="card-body">
           <div class="verification-data">

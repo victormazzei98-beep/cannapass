@@ -233,3 +233,13 @@
 }
 .password-toggle svg { width: 18px; height: 18px; }
 .password-toggle:hover { color: var(--text); }
+
+/* ─── Mobile Auth ─── */
+@media (max-width: 480px) {
+  .auth-brand { font-size: 32px; }
+  .auth-logo-icon { width: 44px; height: 44px; border-radius: 12px; }
+  .auth-logo-icon svg { width: 22px; height: 22px; }
+  .auth-tagline { font-size: 11px; letter-spacing: 2px; margin-bottom: 28px; }
+  .auth-screen { padding: 16px; }
+  .auth-card { padding: 20px 16px; }
+}

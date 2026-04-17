@@ -420,11 +420,130 @@ function getRoleLabel(role) {
   return labels[role] || role;
 }
 
-// ─── Global Error Handler ───
+// ─── Button Loading State ───
+function setButtonLoading(btn, loading, text) {
+  if (!btn) return;
+  if (loading) {
+    btn._origHTML = btn.innerHTML;
+    btn.innerHTML = `<span class="btn-text">${text || btn.textContent}</span>`;
+    btn.classList.add('loading');
+    btn.disabled = true;
+  } else {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    if (btn._origHTML) btn.innerHTML = btn._origHTML;
+    delete btn._origHTML;
+  }
+}
+
+// ─── Inline Form Validation ───
+function validateFieldInline(input, validatorFn, errorMsg) {
+  if (!input) return;
+  const handler = () => {
+    const val = input.value.trim();
+    const group = input.closest('.form-group');
+    if (!val) {
+      input.classList.remove('input-valid', 'input-invalid');
+      if (group) group.querySelector('.inline-error')?.remove();
+      return;
+    }
+    const isValid = validatorFn(val);
+    input.classList.toggle('input-valid', isValid);
+    input.classList.toggle('input-invalid', !isValid);
+    // Show/remove inline error
+    let errEl = group?.querySelector('.inline-error');
+    if (!isValid && errorMsg) {
+      if (!errEl && group) {
+        errEl = document.createElement('span');
+        errEl.className = 'inline-error form-hint text-red';
+        group.appendChild(errEl);
+      }
+      if (errEl) errEl.textContent = errorMsg;
+    } else if (errEl) {
+      errEl.remove();
+    }
+  };
+  input.addEventListener('blur', handler);
+  return handler;
+}
+
+// ─── Lazy Script Loader ───
+const LazyLoad = (() => {
+  const _loaded = new Set();
+  const _loading = {};
+
+  function script(url) {
+    if (_loaded.has(url)) return Promise.resolve();
+    if (_loading[url]) return _loading[url];
+
+    _loading[url] = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => { _loaded.add(url); delete _loading[url]; resolve(); };
+      s.onerror = () => { delete _loading[url]; reject(new Error(`Failed to load: ${url}`)); };
+      document.head.appendChild(s);
+    });
+    return _loading[url];
+  }
+
+  async function chartJS() {
+    if (typeof Chart !== 'undefined') return;
+    await script('https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js');
+  }
+
+  async function leaflet() {
+    if (typeof L !== 'undefined') return;
+    await script('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js');
+  }
+
+  async function jsPDF() {
+    if (typeof window.jspdf !== 'undefined') return;
+    await script('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js');
+    await script('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+  }
+
+  async function qrScanner() {
+    if (typeof Html5Qrcode !== 'undefined') return;
+    await script('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js');
+  }
+
+  return { script, chartJS, leaflet, jsPDF, qrScanner };
+})();
+
+// ─── Global Error Boundary ───
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Promise]', event.reason);
   Toast.error('Ocorreu um erro inesperado. Tente novamente.');
 });
+
+window.addEventListener('error', (event) => {
+  console.error('[Global Error]', event.error);
+  // Show fallback UI only for critical render errors
+  const main = document.getElementById('main-content');
+  if (main && !main.innerHTML.trim()) {
+    main.innerHTML = `
+      <div style="padding:40px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">&#9888;</div>
+        <h3>Algo deu errado</h3>
+        <p style="color:var(--muted);margin:12px 0;">Ocorreu um erro ao carregar esta página.</p>
+        <button class="btn btn-primary" onclick="window.location.reload()">Recarregar</button>
+      </div>
+    `;
+  }
+});
+
+// ─── API Retry Helper ───
+async function fetchWithRetry(fn, retries = 2, delay = 1000) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const result = await fn();
+      return result;
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, delay * (i + 1)));
+    }
+  }
+}
 
 // ─── Offline Detection ───
 window.addEventListener('offline', () => {
