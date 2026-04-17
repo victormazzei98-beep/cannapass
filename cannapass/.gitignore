@@ -22,3 +22,17 @@ build/
 # Supabase local
 supabase/.temp/
 .vercel
+
+# Generated files (do not commit)
+generate-presentation.js
+generate-video-storyboard.js
+*.pptx
+package.json
+package-lock.json
+node_modules/
+
+# Claude worktrees (managed automatically)
+.claude/worktrees/
+
+# The repo lives inside ~/Downloads — ignore everything one level up
+../

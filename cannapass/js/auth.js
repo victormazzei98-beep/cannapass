@@ -255,7 +255,7 @@ const Auth = (() => {
   // ─── Forgot Password (send reset email) ───
   async function forgotPassword(email) {
     const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://cannapass.vercel.app'
+      redirectTo: window.location.origin
     });
 
     if (error) {

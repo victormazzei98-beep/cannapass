@@ -2522,12 +2522,14 @@ const Admin = (() => {
                 <td style="display:flex;gap:8px;flex-wrap:wrap;">
                   <button class="btn btn-success btn-sm approve-agent-btn"
                     data-user-id="${u.id}"
-                    data-user-name="${sanitizeHTML(u.full_name || u.email || '')}">
+                    data-user-name="${sanitizeHTML(u.full_name || u.email || '')}"
+                    data-user-email="${sanitizeHTML(u.email || '')}">
                     ${Icons.success || '✓'} Aprovar
                   </button>
                   <button class="btn btn-danger btn-sm reject-agent-btn"
                     data-user-id="${u.id}"
-                    data-user-name="${sanitizeHTML(u.full_name || u.email || '')}">
+                    data-user-name="${sanitizeHTML(u.full_name || u.email || '')}"
+                    data-user-email="${sanitizeHTML(u.email || '')}">
                     ${Icons.x || '✗'} Rejeitar
                   </button>
                 </td>
@@ -2542,6 +2544,7 @@ const Admin = (() => {
         btn.addEventListener('click', async () => {
           const userId = btn.dataset.userId;
           const userName = btn.dataset.userName;
+          const userEmail = btn.dataset.userEmail;
           const confirmed = await Modal.open({
             title: 'Aprovar Agente',
             body: `Aprovar o cadastro de <strong>${userName}</strong> como Agente Fiscalizador? O usuário terá acesso imediato ao portal do agente.`,
@@ -2557,7 +2560,7 @@ const Admin = (() => {
             if (error) throw error;
             Toast.success(`Agente ${userName} aprovado!`);
             logAudit('approve_agent', 'user', userId, { agent_name: userName });
-            // Remove row
+            if (userEmail) sendNotification('agent_approved', userEmail, userName);
             const row = content.querySelector(`tr[data-agent-row="${userId}"]`);
             if (row) { row.style.opacity='0'; row.style.transition='opacity .3s'; setTimeout(() => loadPendingAgents(), 300); }
           } catch (err) {
@@ -2573,6 +2576,7 @@ const Admin = (() => {
         btn.addEventListener('click', async () => {
           const userId = btn.dataset.userId;
           const userName = btn.dataset.userName;
+          const userEmail = btn.dataset.userEmail;
           const confirmed = await Modal.open({
             title: 'Rejeitar Agente',
             body: `Rejeitar o cadastro de <strong>${userName}</strong>? O usuário não terá acesso ao portal do agente.`,
@@ -2589,6 +2593,7 @@ const Admin = (() => {
             if (error) throw error;
             Toast.success(`Cadastro de ${userName} rejeitado.`);
             logAudit('reject_agent', 'user', userId, { agent_name: userName });
+            if (userEmail) sendNotification('agent_rejected', userEmail, userName);
             const row = content.querySelector(`tr[data-agent-row="${userId}"]`);
             if (row) { row.style.opacity='0'; row.style.transition='opacity .3s'; setTimeout(() => loadPendingAgents(), 300); }
           } catch (err) {
