@@ -16,7 +16,9 @@ const Router = (() => {
       { id: 'viagem', icon: Icons.viagem, label: 'Viagem', section: 'QR Code' },
       { id: 'qrcode', icon: Icons.qrcode, label: 'Meu QR Code', section: 'QR Code' },
       { id: 'historico', icon: Icons.historico, label: 'Histórico', section: 'QR Code' },
-      { id: 'perfil', icon: Icons.perfil, label: 'Meu Perfil', section: 'Conta' }
+      { id: 'perfil', icon: Icons.perfil, label: 'Meu Perfil', section: 'Conta' },
+      { id: 'diretorio', icon: Icons.diretorio, label: 'Diretório', section: 'Ajuda' },
+      { id: 'suporte', icon: Icons.suporte, label: 'Suporte', section: 'Ajuda' }
     ],
     [ROLES.AGENT]: [
       { id: 'scanner', icon: Icons.scanner, label: 'Scanner', section: 'Verificação' },
@@ -32,7 +34,9 @@ const Router = (() => {
       { id: 'qr-management', icon: Icons.qrcode, label: 'QR Codes', section: 'Gestão' },
       { id: 'relatorios', icon: Icons.relatorios, label: 'Relatórios', section: 'Sistema' },
       { id: 'auditoria', icon: Icons.historico, label: 'Auditoria', section: 'Sistema' },
-      { id: 'usuarios', icon: Icons.usuarios, label: 'Usuários', section: 'Sistema' }
+      { id: 'usuarios', icon: Icons.usuarios, label: 'Usuários', section: 'Sistema' },
+      { id: 'diretorio-admin', icon: Icons.diretorio, label: 'Diretório', section: 'Configurações' },
+      { id: 'configuracoes', icon: Icons.configuracoes, label: 'Configurações', section: 'Configurações' }
     ]
   };
 
@@ -56,7 +60,11 @@ const Router = (() => {
     'qr-management': 'Gerenciar QR Codes',
     'relatorios': 'Relatórios',
     'auditoria': 'Log de Auditoria',
-    'usuarios': 'Usuários'
+    'usuarios': 'Usuários',
+    'diretorio': 'Diretório',
+    'suporte': 'Suporte',
+    'diretorio-admin': 'Diretório de Parceiros',
+    'configuracoes': 'Configurações'
   };
 
   // ─── Portal Badges ───

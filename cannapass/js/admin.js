@@ -98,6 +98,8 @@ const Admin = (() => {
       case 'relatorios': renderRelatorios(container); break;
       case 'auditoria': renderAuditoria(container); break;
       case 'usuarios': renderUsuarios(container); break;
+      case 'diretorio-admin': renderDiretorioAdmin(container); break;
+      case 'configuracoes': renderConfiguracoes(container); break;
       default: renderDashboard(container);
     }
   }
@@ -2843,6 +2845,281 @@ const Admin = (() => {
       else if (containerId === 'auditoria-pagination') auditoriaPage++;
       else if (containerId === 'usuarios-pagination') usuariosPage++;
       reload();
+    });
+  }
+
+  // ═══════════════════════════════════════
+  //  DIRETÓRIO ADMIN
+  // ═══════════════════════════════════════
+  async function renderDiretorioAdmin(container) {
+    container.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Carregando diretório...</p></div>`;
+
+    const typeLabels = { medico: 'Médico', associacao: 'Associação', advogado: 'Advogado' };
+    const typeBadge  = { medico: 'badge-info', associacao: 'badge-success', advogado: 'badge-warning' };
+
+    async function loadDir() {
+      const { data, error } = await sb.from('directory').select('*').order('name');
+      if (error) { Toast.error('Erro ao carregar diretório.'); return; }
+
+      const entries = data || [];
+
+      container.innerHTML = `
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+          <div>
+            <h2>Diretório de Parceiros</h2>
+            <p class="text-muted">${entries.length} entrada${entries.length !== 1 ? 's' : ''} cadastrada${entries.length !== 1 ? 's' : ''}.</p>
+          </div>
+          <button class="btn btn-primary" id="dir-add-btn">+ Adicionar</button>
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nome</th><th>Tipo</th><th>Estado</th><th>Contato</th><th>Status</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${!entries.length ? `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Nenhuma entrada ainda. Clique em "+ Adicionar".</td></tr>` :
+              entries.map(e => `
+                <tr data-id="${e.id}">
+                  <td>
+                    <div style="font-weight:500;">${sanitizeHTML(e.name)}</div>
+                    ${e.specialty ? `<div style="font-size:.8rem;color:var(--text-muted);">${sanitizeHTML(e.specialty)}</div>` : ''}
+                  </td>
+                  <td><span class="badge ${typeBadge[e.type] || 'badge-info'}">${typeLabels[e.type] || e.type}</span></td>
+                  <td>${e.city ? sanitizeHTML(e.city) + (e.state ? ` — ${sanitizeHTML(e.state)}` : '') : sanitizeHTML(e.state || '—')}</td>
+                  <td style="font-size:.82rem;">
+                    ${e.whatsapp ? `<div>WA: ${sanitizeHTML(e.whatsapp)}</div>` : ''}
+                    ${e.phone    ? `<div>Tel: ${sanitizeHTML(e.phone)}</div>` : ''}
+                    ${e.email    ? `<div>${sanitizeHTML(e.email)}</div>` : ''}
+                  </td>
+                  <td>
+                    <span class="badge ${e.active ? 'badge-success' : 'badge-danger'}">${e.active ? 'Ativo' : 'Inativo'}</span>
+                  </td>
+                  <td>
+                    <div style="display:flex;gap:6px;">
+                      <button class="btn btn-outline btn-sm dir-edit-btn" data-id="${e.id}">Editar</button>
+                      <button class="btn btn-sm dir-toggle-btn ${e.active ? 'btn-warning' : 'btn-success'}" data-id="${e.id}" data-active="${e.active}">
+                        ${e.active ? 'Desativar' : 'Ativar'}
+                      </button>
+                      <button class="btn btn-danger btn-sm dir-delete-btn" data-id="${e.id}" data-name="${sanitizeHTML(e.name)}">Excluir</button>
+                    </div>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      container.querySelector('#dir-add-btn')?.addEventListener('click', () => showDirModal(null, loadDir));
+      container.querySelectorAll('.dir-edit-btn').forEach(btn =>
+        btn.addEventListener('click', () => {
+          const entry = entries.find(e => e.id === btn.dataset.id);
+          if (entry) showDirModal(entry, loadDir);
+        }));
+      container.querySelectorAll('.dir-toggle-btn').forEach(btn =>
+        btn.addEventListener('click', async () => {
+          const isActive = btn.dataset.active === 'true';
+          const { error } = await sb.from('directory').update({ active: !isActive }).eq('id', btn.dataset.id);
+          if (error) { Toast.error('Erro ao atualizar.'); return; }
+          Toast.success(isActive ? 'Entrada desativada.' : 'Entrada ativada.');
+          loadDir();
+        }));
+      container.querySelectorAll('.dir-delete-btn').forEach(btn =>
+        btn.addEventListener('click', async () => {
+          const ok = await Modal.open({ title: 'Excluir entrada', body: `Excluir <strong>${btn.dataset.name}</strong> do diretório?`, confirmText: 'Excluir', danger: true });
+          if (!ok) return;
+          const { error } = await sb.from('directory').delete().eq('id', btn.dataset.id);
+          if (error) { Toast.error('Erro ao excluir.'); return; }
+          Toast.success('Entrada excluída.');
+          loadDir();
+        }));
+    }
+
+    await loadDir();
+  }
+
+  function showDirModal(entry, onSave) {
+    const typeLabels = { medico: 'Médico Prescritor', associacao: 'Associação de Pacientes', advogado: 'Advogado Especializado' };
+    const isEdit = !!entry;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = `
+      <div style="background:var(--card-bg);border-radius:12px;padding:28px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <h3 style="margin:0;">${isEdit ? 'Editar entrada' : 'Adicionar ao diretório'}</h3>
+          <button id="dir-modal-close" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.4rem;line-height:1;">&times;</button>
+        </div>
+        <form id="dir-modal-form">
+          <div class="form-group">
+            <label class="form-label">Tipo *</label>
+            <select class="form-control" name="type" required>
+              <option value="">Selecione...</option>
+              ${Object.entries(typeLabels).map(([v,l]) => `<option value="${v}" ${entry?.type===v?'selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nome *</label>
+            <input class="form-control" name="name" placeholder="Nome completo ou da instituição" value="${sanitizeHTML(entry?.name||'')}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Especialidade / Descrição curta</label>
+            <input class="form-control" name="specialty" placeholder="Ex: Neurologia, Cannabis medicinal" value="${sanitizeHTML(entry?.specialty||'')}">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Estado (UF)</label>
+              <input class="form-control" name="state" placeholder="SP" maxlength="2" value="${sanitizeHTML(entry?.state||'')}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cidade</label>
+              <input class="form-control" name="city" placeholder="São Paulo" value="${sanitizeHTML(entry?.city||'')}">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">WhatsApp</label>
+              <input class="form-control" name="whatsapp" placeholder="11 99999-9999" value="${sanitizeHTML(entry?.whatsapp||'')}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone</label>
+              <input class="form-control" name="phone" placeholder="11 3333-3333" value="${sanitizeHTML(entry?.phone||'')}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-mail</label>
+            <input class="form-control" type="email" name="email" placeholder="contato@exemplo.com" value="${sanitizeHTML(entry?.email||'')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Site</label>
+            <input class="form-control" name="website" placeholder="https://..." value="${sanitizeHTML(entry?.website||'')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição (aparece no card)</label>
+            <textarea class="form-control" name="description" rows="2" placeholder="Breve descrição dos serviços...">${sanitizeHTML(entry?.description||'')}</textarea>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+            <button type="button" id="dir-modal-cancel" class="btn btn-outline">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="dir-modal-save">${isEdit ? 'Salvar alterações' : 'Adicionar'}</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const close = () => document.body.removeChild(overlay);
+    overlay.querySelector('#dir-modal-close').addEventListener('click', close);
+    overlay.querySelector('#dir-modal-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('#dir-modal-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd   = new FormData(e.target);
+      const data = Object.fromEntries(fd.entries());
+      const saveBtn = overlay.querySelector('#dir-modal-save');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<div class="spinner spinner-sm"></div>';
+
+      const payload = {
+        type: data.type, name: data.name,
+        specialty: data.specialty || null, state: (data.state || '').toUpperCase() || null,
+        city: data.city || null, phone: data.phone || null,
+        whatsapp: data.whatsapp || null, email: data.email || null,
+        website: data.website || null, description: data.description || null,
+        updated_at: new Date().toISOString()
+      };
+
+      let error;
+      if (isEdit) {
+        ({ error } = await sb.from('directory').update(payload).eq('id', entry.id));
+      } else {
+        ({ error } = await sb.from('directory').insert({ ...payload, active: true }));
+      }
+
+      if (error) {
+        Toast.error('Erro ao salvar: ' + (error.message || 'Tente novamente.'));
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Salvar alterações' : 'Adicionar';
+        return;
+      }
+
+      Toast.success(isEdit ? 'Entrada atualizada!' : 'Entrada adicionada ao diretório!');
+      close();
+      onSave();
+    });
+  }
+
+  // ═══════════════════════════════════════
+  //  CONFIGURAÇÕES
+  // ═══════════════════════════════════════
+  async function renderConfiguracoes(container) {
+    container.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Carregando configurações...</p></div>`;
+
+    const { data: configs, error } = await sb.from('app_config').select('key, value');
+    if (error) { container.innerHTML = `<div class="empty-state">${Icons.error}<p>Erro ao carregar configurações.</p></div>`; return; }
+
+    const cfg = {};
+    (configs || []).forEach(c => { cfg[c.key] = c.value; });
+
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>Configurações</h2>
+        <p class="text-muted">Ajuste os dados de contato do suporte exibidos para os pacientes.</p>
+      </div>
+
+      <div class="card" style="max-width:540px;">
+        <h3 style="margin:0 0 20px;">Central de Suporte</h3>
+        <form id="config-form">
+          <div class="form-group">
+            <label class="form-label">WhatsApp da central</label>
+            <input class="form-control" name="support_whatsapp" placeholder="11 99999-9999" value="${sanitizeHTML(cfg.support_whatsapp||'')}">
+            <small style="color:var(--text-muted);">Apenas números e traços. Será usado para criar o link wa.me automaticamente.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefone</label>
+            <input class="form-control" name="support_phone" placeholder="11 3333-3333" value="${sanitizeHTML(cfg.support_phone||'')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-mail de suporte</label>
+            <input class="form-control" type="email" name="support_email" placeholder="suporte@cannapass.com.br" value="${sanitizeHTML(cfg.support_email||'')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário de atendimento</label>
+            <input class="form-control" name="support_hours" placeholder="Seg–Sex, 9h–18h" value="${sanitizeHTML(cfg.support_hours||'')}">
+          </div>
+          <button type="submit" class="btn btn-primary" id="config-save-btn">Salvar configurações</button>
+        </form>
+      </div>
+    `;
+
+    container.querySelector('#config-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd  = new FormData(e.target);
+      const btn = container.querySelector('#config-save-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner spinner-sm"></div> Salvando...';
+
+      const updates = [
+        { key: 'support_whatsapp', value: fd.get('support_whatsapp') || '' },
+        { key: 'support_phone',    value: fd.get('support_phone')    || '' },
+        { key: 'support_email',    value: fd.get('support_email')    || '' },
+        { key: 'support_hours',    value: fd.get('support_hours')    || '' },
+      ];
+
+      let hasError = false;
+      for (const row of updates) {
+        const { error } = await sb.from('app_config').upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        if (error) { hasError = true; break; }
+      }
+
+      if (hasError) {
+        Toast.error('Erro ao salvar configurações.');
+      } else {
+        Toast.success('Configurações salvas com sucesso!');
+        logAudit('update_config', 'app_config', 'support', {});
+      }
+      btn.disabled = false;
+      btn.textContent = 'Salvar configurações';
     });
   }
 
