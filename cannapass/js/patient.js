@@ -1173,6 +1173,23 @@ const Patient = (() => {
               </div>
             </div>
 
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="t-product">Produto *</label>
+                <select class="form-select" id="t-product" required>
+                  <option value="">Selecione...</option>
+                  <option value="Flor">Flor</option>
+                  <option value="Óleo">Óleo</option>
+                  <option value="Concentrado">Concentrado</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="t-quantity">Quantidade *</label>
+                <input class="form-input" type="text" id="t-quantity" placeholder="Ex: 2 frascos / 30ml" required>
+              </div>
+            </div>
+
             <div class="form-group">
               <label class="form-label" for="t-notes">Observações</label>
               <textarea class="form-input" id="t-notes" rows="3" placeholder="Informações adicionais sobre a viagem..."></textarea>
@@ -1185,6 +1202,17 @@ const Patient = (() => {
         </div>
       </div>
     `;
+
+    // Pré-preenche produto/quantidade com os dados do cadastro (editáveis por viagem)
+    const productInput = document.getElementById('t-product');
+    const quantityInput = document.getElementById('t-quantity');
+    if (productInput) {
+      // Pré-seleciona a opção do dropdown se o tipo do cadastro casar com uma das opções
+      const cadastroProduct = (patient.product_type || patient.product_name || '').trim().toLowerCase();
+      const match = Array.from(productInput.options).find(o => o.value && o.value.toLowerCase() === cadastroProduct);
+      if (match) productInput.value = match.value;
+    }
+    if (quantityInput) quantityInput.value = patient.transport_quantity || patient.total_quantity || '';
 
     document.getElementById('travel-form')?.addEventListener('submit', handleTravelSubmit);
   }
@@ -1204,9 +1232,11 @@ const Patient = (() => {
       const returnDate = document.getElementById('t-return').value || null;
       const transport = document.getElementById('t-transport').value;
       const flight = document.getElementById('t-flight').value.trim() || null;
+      const product = document.getElementById('t-product').value.trim();
+      const quantity = document.getElementById('t-quantity').value.trim();
       const notes = document.getElementById('t-notes').value.trim() || null;
 
-      if (!origin || !destination || !departure || !transport) {
+      if (!origin || !destination || !departure || !transport || !product || !quantity) {
         Toast.error('Preencha todos os campos obrigatórios.');
         return;
       }
@@ -1230,8 +1260,8 @@ const Patient = (() => {
           patient_name: patient.full_name,
           cpf_masked: maskCPF(patient.cpf || ''),
           via: patient.via,
-          product: patient.product_name || patient.product_type || '—',
-          quantity: patient.transport_quantity || patient.total_quantity || '—',
+          product,
+          quantity,
           legal_reference: legalRef,
           is_active: true,
           expires_at: expiresAt.toISOString()
