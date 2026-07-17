@@ -14,6 +14,17 @@ const Auth = (() => {
       hideLoading();
       const token = hash.slice(PUBLIC_VERIFY_HASH.length);
       Router.showPublicVerification(token);
+      // Router.init() (which wires hashchange) is skipped on the public path, so
+      // re-render public routes on hash change — e.g. scanning another QR in the
+      // same open tab, without needing a full page reload.
+      window.addEventListener('hashchange', () => {
+        const h = window.location.hash || '';
+        if (h.startsWith(PUBLIC_VERIFY_HASH)) {
+          Router.showPublicVerification(h.slice(PUBLIC_VERIFY_HASH.length));
+        } else if (h === '#/verificar') {
+          Router.showPublicVerificationSearch();
+        }
+      });
       return;
     }
 

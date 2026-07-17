@@ -15,6 +15,7 @@ const Admin = (() => {
   let usuariosPage = 0;
   let transportMap = null;
   let chartVerifStates = null;
+  let chartsLoading = false;
 
   // ─── Brazil Cities Coordinates (state capitals + major transport hubs) ───
   const BRAZIL_CITIES = {
@@ -251,6 +252,11 @@ const Admin = (() => {
   }
 
   async function loadCharts() {
+    // Guard against overlapping runs: loadCharts is async and awaits data fetches
+    // between destroying and recreating charts. Rapid re-navigation to the dashboard
+    // could start a second run that collides on the same canvas ("Canvas is already in use").
+    if (chartsLoading) return;
+    chartsLoading = true;
     try {
       // Lazy load Chart.js
       await LazyLoad.chartJS();
@@ -283,6 +289,7 @@ const Admin = (() => {
 
       const regCanvas = document.getElementById('chart-registrations');
       if (regCanvas) {
+        Chart.getChart(regCanvas)?.destroy();
         chartRegistrations = new Chart(regCanvas, {
           type: 'line',
           data: {
@@ -353,6 +360,7 @@ const Admin = (() => {
 
       const statusCanvas = document.getElementById('chart-status');
       if (statusCanvas) {
+        Chart.getChart(statusCanvas)?.destroy();
         chartStatus = new Chart(statusCanvas, {
           type: 'doughnut',
           data: {
@@ -387,6 +395,8 @@ const Admin = (() => {
 
     } catch (err) {
       console.error('[Admin] Charts error:', err);
+    } finally {
+      chartsLoading = false;
     }
   }
 
@@ -447,6 +457,7 @@ const Admin = (() => {
       const data = sorted.map(([, count]) => count);
       const maxVal = Math.max(...data);
 
+      Chart.getChart(canvas)?.destroy();
       chartVerifStates = new Chart(canvas, {
         type: 'bar',
         data: {
