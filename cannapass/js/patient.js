@@ -938,26 +938,44 @@ const Patient = (() => {
       const ext = file.name.split('.').pop().toLowerCase();
       const filePath = `${userId}/${docType}_${Date.now()}.${ext}`;
 
+      // Só é permitido 1 documento por tipo (constraint única patient_id + doc_type).
+      // Se já existir um deste tipo, vamos substituí-lo e limpar o arquivo antigo.
+      const { data: existing } = await sb.from('documents')
+        .select('id, file_path')
+        .eq('patient_id', patient.id)
+        .eq('doc_type', docType)
+        .maybeSingle();
+
       const { error: uploadError } = await sb.storage
         .from(STORAGE_BUCKET)
         .upload(filePath, file, { contentType: file.type, upsert: false });
 
       if (uploadError) throw uploadError;
 
-      // Save metadata
-      const { error: dbError } = await sb.from('documents').insert({
+      // Insere ou substitui o registro do mesmo tipo
+      const { error: dbError } = await sb.from('documents').upsert({
         patient_id: patient.id,
         user_id: userId,
         doc_type: docType,
         file_name: file.name,
         file_path: filePath,
         file_size: file.size,
-        mime_type: file.type
-      });
+        mime_type: file.type,
+        status: 'uploaded'
+      }, { onConflict: 'patient_id,doc_type' });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        // Evita arquivo órfão: remove o que acabou de subir se o registro falhou
+        await sb.storage.from(STORAGE_BUCKET).remove([filePath]).catch(() => {});
+        throw dbError;
+      }
 
-      Toast.success('Documento enviado com sucesso!');
+      // Substituiu um documento anterior? Remove o arquivo antigo do storage
+      if (existing?.file_path && existing.file_path !== filePath) {
+        await sb.storage.from(STORAGE_BUCKET).remove([existing.file_path]).catch(() => {});
+      }
+
+      Toast.success(existing ? 'Documento atualizado com sucesso!' : 'Documento enviado com sucesso!');
 
       // Reset form
       document.getElementById('doc-type-select').value = '';
