@@ -148,6 +148,58 @@ const UF_NAMES = Object.freeze({
 // quantidade passa a oferecer só as medidas que fazem sentido para ele.
 const PRODUCT_OPTIONS = Object.freeze(['Flor', 'Óleo', 'Concentrado', 'Outro']);
 
+// ─── Aeroportos (informados quando o transporte é aéreo) ───
+// Padronizados por código IATA para que a fiscalização em aeroporto reconheça
+// exatamente o ponto de embarque/desembarque.
+const AIRPORTS = Object.freeze([
+  { code: 'GRU', name: 'Guarulhos',        city: 'São Paulo',            uf: 'SP' },
+  { code: 'CGH', name: 'Congonhas',        city: 'São Paulo',            uf: 'SP' },
+  { code: 'VCP', name: 'Viracopos',        city: 'Campinas',             uf: 'SP' },
+  { code: 'RAO', name: 'Leite Lopes',      city: 'Ribeirão Preto',       uf: 'SP' },
+  { code: 'SJK', name: 'Prof. Urbano E. Stumpf', city: 'São José dos Campos', uf: 'SP' },
+  { code: 'GIG', name: 'Galeão',           city: 'Rio de Janeiro',       uf: 'RJ' },
+  { code: 'SDU', name: 'Santos Dumont',    city: 'Rio de Janeiro',       uf: 'RJ' },
+  { code: 'BSB', name: 'Juscelino Kubitschek', city: 'Brasília',         uf: 'DF' },
+  { code: 'CNF', name: 'Confins',          city: 'Belo Horizonte',       uf: 'MG' },
+  { code: 'PLU', name: 'Pampulha',         city: 'Belo Horizonte',       uf: 'MG' },
+  { code: 'UDI', name: 'Ten. Cel. Av. C. A. da Costa', city: 'Uberlândia', uf: 'MG' },
+  { code: 'CWB', name: 'Afonso Pena',      city: 'Curitiba',             uf: 'PR' },
+  { code: 'IGU', name: 'Cataratas',        city: 'Foz do Iguaçu',        uf: 'PR' },
+  { code: 'LDB', name: 'Gov. José Richa',  city: 'Londrina',             uf: 'PR' },
+  { code: 'MGF', name: 'Sílvio Name Júnior', city: 'Maringá',            uf: 'PR' },
+  { code: 'FLN', name: 'Hercílio Luz',     city: 'Florianópolis',        uf: 'SC' },
+  { code: 'NVT', name: 'Ministro Victor Konder', city: 'Navegantes',     uf: 'SC' },
+  { code: 'JOI', name: 'Lauro Carneiro de Loyola', city: 'Joinville',    uf: 'SC' },
+  { code: 'POA', name: 'Salgado Filho',    city: 'Porto Alegre',         uf: 'RS' },
+  { code: 'SSA', name: 'Dep. Luís Eduardo Magalhães', city: 'Salvador',  uf: 'BA' },
+  { code: 'BPS', name: 'Porto Seguro',     city: 'Porto Seguro',         uf: 'BA' },
+  { code: 'IOS', name: 'Jorge Amado',      city: 'Ilhéus',               uf: 'BA' },
+  { code: 'REC', name: 'Guararapes',       city: 'Recife',               uf: 'PE' },
+  { code: 'PNZ', name: 'Sen. Nilo Coelho', city: 'Petrolina',            uf: 'PE' },
+  { code: 'FEN', name: 'Fernando de Noronha', city: 'Fernando de Noronha', uf: 'PE' },
+  { code: 'FOR', name: 'Pinto Martins',    city: 'Fortaleza',            uf: 'CE' },
+  { code: 'JDO', name: 'Orlando Bezerra de Menezes', city: 'Juazeiro do Norte', uf: 'CE' },
+  { code: 'NAT', name: 'Gov. Aluízio Alves', city: 'Natal',              uf: 'RN' },
+  { code: 'JPA', name: 'Pres. Castro Pinto', city: 'João Pessoa',        uf: 'PB' },
+  { code: 'CPV', name: 'Pres. João Suassuna', city: 'Campina Grande',    uf: 'PB' },
+  { code: 'MCZ', name: 'Zumbi dos Palmares', city: 'Maceió',             uf: 'AL' },
+  { code: 'AJU', name: 'Santa Maria',      city: 'Aracaju',              uf: 'SE' },
+  { code: 'THE', name: 'Sen. Petrônio Portella', city: 'Teresina',       uf: 'PI' },
+  { code: 'SLZ', name: 'Mal. Cunha Machado', city: 'São Luís',           uf: 'MA' },
+  { code: 'IMP', name: 'Prefeito Renato Moreira', city: 'Imperatriz',    uf: 'MA' },
+  { code: 'BEL', name: 'Val de Cans',      city: 'Belém',                uf: 'PA' },
+  { code: 'MAO', name: 'Eduardo Gomes',    city: 'Manaus',               uf: 'AM' },
+  { code: 'VIX', name: 'Eurico de Aguiar Salles', city: 'Vitória',       uf: 'ES' },
+  { code: 'GYN', name: 'Santa Genoveva',   city: 'Goiânia',              uf: 'GO' },
+  { code: 'CGB', name: 'Mal. Rondon',      city: 'Cuiabá',               uf: 'MT' },
+  { code: 'CGR', name: 'Campo Grande',     city: 'Campo Grande',         uf: 'MS' },
+  { code: 'PMW', name: 'Brig. Lysias Rodrigues', city: 'Palmas',         uf: 'TO' },
+  { code: 'PVH', name: 'Gov. Jorge Teixeira', city: 'Porto Velho',       uf: 'RO' },
+  { code: 'RBR', name: 'Plácido de Castro', city: 'Rio Branco',          uf: 'AC' },
+  { code: 'BVB', name: 'Atlas Brasil Cantanhede', city: 'Boa Vista',     uf: 'RR' },
+  { code: 'MCP', name: 'Alberto Alcolumbre', city: 'Macapá',             uf: 'AP' }
+]);
+
 // ─── Vara / Tribunal (padronização do campo judicial do habeas corpus) ───
 const COURT_TYPES = Object.freeze([
   'Vara Federal',

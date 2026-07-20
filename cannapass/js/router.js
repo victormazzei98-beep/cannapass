@@ -496,6 +496,16 @@ const Router = (() => {
                 <label>Voo / Linha</label>
                 <span>${sanitizeHTML(data.flight_or_bus)}</span>
               </div>` : ''}
+              ${data.airport_destination ? `
+              <div class="verification-field">
+                <label>Aeroporto de destino</label>
+                <span>${sanitizeHTML(data.airport_destination)}</span>
+              </div>` : ''}
+              ${data.airport_return ? `
+              <div class="verification-field">
+                <label>Aeroporto de retorno</label>
+                <span>${sanitizeHTML(data.airport_return)}</span>
+              </div>` : ''}
             </div>
           </div>
 

@@ -1144,6 +1144,22 @@ const Patient = (() => {
       }).join('');
   }
 
+  // Aeroportos agrupados por estado — usados apenas quando o transporte é aéreo
+  function airportOptionsHTML() {
+    const byUf = {};
+    AIRPORTS.forEach(a => { (byUf[a.uf] = byUf[a.uf] || []).push(a); });
+    return Object.keys(byUf)
+      .sort((a, b) => (UF_NAMES[a] || a).localeCompare(UF_NAMES[b] || b, 'pt-BR'))
+      .map(uf => {
+        const list = byUf[uf].slice().sort((a, b) => a.city.localeCompare(b.city, 'pt-BR'));
+        return `<optgroup label="${sanitizeHTML(UF_NAMES[uf] || uf)}">` +
+          list.map(a => {
+            const label = `${a.code} — ${a.name} (${a.city})`;
+            return `<option value="${sanitizeHTML(label)}">${sanitizeHTML(label)}</option>`;
+          }).join('') + `</optgroup>`;
+      }).join('');
+  }
+
   // ─── Padronização dos campos de CRM e Vara (selecionar em vez de digitar) ───
   function ufOptionsHTML(selected) {
     return Object.keys(UF_NAMES).sort().map(uf =>
@@ -1245,6 +1261,7 @@ const Patient = (() => {
     }
 
     const cityOpts = cityOptionsHTML();
+    const airportOpts = airportOptionsHTML();
 
     container.innerHTML = `
       <div class="page-header">
@@ -1296,6 +1313,24 @@ const Patient = (() => {
               <div class="form-group">
                 <label class="form-label" for="t-flight">Voo / Linha (opcional)</label>
                 <input class="form-input" type="text" id="t-flight" placeholder="Ex: LATAM 3456">
+              </div>
+            </div>
+
+            <!-- Aeroportos: exibidos apenas quando o transporte é aéreo -->
+            <div class="grid-2 hidden" id="airport-fields">
+              <div class="form-group">
+                <label class="form-label" for="t-airport-dest">Aeroporto de destino *</label>
+                <select class="form-select" id="t-airport-dest">
+                  <option value="">Selecione o aeroporto...</option>
+                  ${airportOpts}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="t-airport-return">Aeroporto de retorno</label>
+                <select class="form-select" id="t-airport-return">
+                  <option value="">Selecione o aeroporto...</option>
+                  ${airportOpts}
+                </select>
               </div>
             </div>
 
@@ -1355,6 +1390,24 @@ const Patient = (() => {
     }
     refreshQuantityOptions((patient.transport_quantity || patient.total_quantity || '').trim());
 
+    // Aeroportos só fazem sentido em viagem aérea
+    const transportSel = document.getElementById('t-transport');
+    const airportFields = document.getElementById('airport-fields');
+    const airportDest = document.getElementById('t-airport-dest');
+    const airportReturn = document.getElementById('t-airport-return');
+
+    function refreshAirportFields() {
+      const isAir = transportSel?.value === TRANSPORT.AIR;
+      airportFields?.classList.toggle('hidden', !isAir);
+      if (airportDest) airportDest.required = isAir;
+      if (!isAir) {
+        if (airportDest) airportDest.value = '';
+        if (airportReturn) airportReturn.value = '';
+      }
+    }
+    transportSel?.addEventListener('change', refreshAirportFields);
+    refreshAirportFields();
+
     document.getElementById('travel-form')?.addEventListener('submit', handleTravelSubmit);
   }
 
@@ -1376,9 +1429,17 @@ const Patient = (() => {
       const product = document.getElementById('t-product').value.trim();
       const quantity = document.getElementById('t-quantity').value.trim();
       const notes = document.getElementById('t-notes').value.trim() || null;
+      const isAir = transport === TRANSPORT.AIR;
+      const airportDest = isAir ? (document.getElementById('t-airport-dest')?.value || '') : '';
+      const airportReturn = isAir ? (document.getElementById('t-airport-return')?.value || '') : '';
 
       if (!origin || !destination || !departure || !transport || !product || !quantity) {
         Toast.error('Preencha todos os campos obrigatórios.');
+        return;
+      }
+
+      if (isAir && !airportDest) {
+        Toast.error('Selecione o aeroporto de destino.');
         return;
       }
 
@@ -1423,7 +1484,9 @@ const Patient = (() => {
           destination,
           departure_date: departure,
           transport_type: transport,
-          flight_or_bus: flight
+          flight_or_bus: flight,
+          airport_destination: airportDest || null,
+          airport_return: airportReturn || null
         })
         .select()
         .single();
@@ -1540,6 +1603,20 @@ const Patient = (() => {
             <div class="qr-meta-value">${sanitizeHTML(qr.quantity || '—')}</div>
           </div>
         </div>
+
+        ${(travel?.airport_destination || travel?.airport_return) ? `
+        <div class="qr-meta mt-sm">
+          ${travel?.airport_destination ? `
+          <div class="qr-meta-item">
+            <div class="qr-meta-label">Aeroporto de destino</div>
+            <div class="qr-meta-value">${sanitizeHTML(travel.airport_destination)}</div>
+          </div>` : ''}
+          ${travel?.airport_return ? `
+          <div class="qr-meta-item">
+            <div class="qr-meta-label">Aeroporto de retorno</div>
+            <div class="qr-meta-value">${sanitizeHTML(travel.airport_return)}</div>
+          </div>` : ''}
+        </div>` : ''}
       </div>
     `;
 
