@@ -307,6 +307,9 @@ const Agent = (() => {
       }
 
       // Fetch patient details if we have patient_id (returned by updated RPC)
+      let allTravelHistory = [];
+      let patientVerifications = [];
+
       if (qrRecord.patient_id) {
         const { data: pData } = await sb.from('patients')
           .select('*')
@@ -323,13 +326,21 @@ const Agent = (() => {
           documents = docs || [];
         }
 
-        // Fetch travel data (RPC already returns latest travel, but we get full record)
+        // Fetch ALL travel history (not just latest)
         const { data: tData } = await sb.from('travel_data')
           .select('*')
           .eq('patient_id', qrRecord.patient_id)
+          .order('created_at', { ascending: false });
+        allTravelHistory = tData || [];
+        travelData = allTravelHistory.length > 0 ? allTravelHistory[0] : null;
+
+        // Fetch all verifications for this patient
+        const { data: vData } = await sb.from('verifications')
+          .select('*')
+          .eq('patient_name', qrRecord.patient_name || patientData?.full_name)
           .order('created_at', { ascending: false })
-          .limit(1);
-        travelData = tData && tData.length > 0 ? tData[0] : null;
+          .limit(50);
+        patientVerifications = vData || [];
       }
 
       // Record verification — use qr_id from RPC
@@ -337,11 +348,11 @@ const Agent = (() => {
 
       // Cache successful verification for offline use
       if (result === 'valid' || result === 'expired') {
-        OfflineCache.save(token, { result, qrRecord, patientData, travelData, documents });
+        OfflineCache.save(token, { result, qrRecord, patientData, travelData, documents, allTravelHistory, patientVerifications });
       }
 
       // Render result
-      renderVerificationResult(resultArea, result, qrRecord, patientData, travelData, documents);
+      renderVerificationResult(resultArea, result, qrRecord, patientData, travelData, documents, false, allTravelHistory, patientVerifications);
 
     } catch (err) {
       console.error('[Verification]', err);
@@ -352,7 +363,7 @@ const Agent = (() => {
         if (cached) {
           const age = dayjs().diff(dayjs(cached.cachedAt), 'hour');
           Toast.warning(`Sem conexão — exibindo resultado em cache (${age < 1 ? 'agora' : age + 'h atrás'})`);
-          renderVerificationResult(resultArea, cached.data.result, cached.data.qrRecord, cached.data.patientData, cached.data.travelData, cached.data.documents, true);
+          renderVerificationResult(resultArea, cached.data.result, cached.data.qrRecord, cached.data.patientData, cached.data.travelData, cached.data.documents, true, cached.data.allTravelHistory || [], cached.data.patientVerifications || []);
           return;
         }
       }
@@ -385,7 +396,10 @@ const Agent = (() => {
     }
   }
 
-  function renderVerificationResult(container, result, qrRecord, patientData, travelData, documents, isOffline = false) {
+  // Chart instance for patient profile
+  let chartPatientTrips = null;
+
+  function renderVerificationResult(container, result, qrRecord, patientData, travelData, documents, isOffline = false, allTravelHistory = [], patientVerifications = []) {
     const statusConfig = {
       valid: {
         label: 'VÁLIDO',
@@ -422,6 +436,7 @@ const Agent = (() => {
       `;
     }
 
+    // ═══ STATUS BANNER ═══
     html += `
       <div class="verification-result ${cfg.cardClass}">
         <div class="verification-status">
@@ -434,56 +449,43 @@ const Agent = (() => {
       </div>
     `;
 
-    // Show patient and QR details for valid/expired
+    // Show full patient profile for valid/expired
     if ((result === 'valid' || result === 'expired') && qrRecord) {
+
+      // ═══ PATIENT PROFILE HEADER ═══
+      const patientName = qrRecord.patient_name || patientData?.full_name || '—';
+      const initials = patientName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+      const cpfDisplay = qrRecord.cpf_masked || (patientData?.cpf ? maskCPF(patientData.cpf) : '—');
+      const regId = patientData?.registration_id || '—';
+      const viaLabel = getViaLabel(qrRecord.via || patientData?.via || '');
+
       html += `
         <div class="card mt-md">
-          <div class="card-header">
-            <h3 class="card-title">Dados do Paciente</h3>
-          </div>
           <div class="card-body">
-            <div class="verification-data">
-              <div class="verification-field">
-                <span class="text-muted text-sm">Nome</span>
-                <strong>${sanitizeHTML(qrRecord.patient_name || patientData?.full_name || '—')}</strong>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+              <div style="width:56px;height:56px;border-radius:50%;background:var(--green-soft);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--green);flex-shrink:0;">
+                ${initials}
               </div>
-              <div class="verification-field">
-                <span class="text-muted text-sm">CPF</span>
-                <strong>${sanitizeHTML(qrRecord.cpf_masked || (patientData?.cpf ? maskCPF(patientData.cpf) : '—'))}</strong>
-              </div>
-              ${patientData ? `
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Registro</span>
-                  <strong>${sanitizeHTML(patientData.registration_id || '—')}</strong>
+              <div style="flex:1;min-width:0;">
+                <h3 style="font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;margin:0 0 4px;">${sanitizeHTML(patientName)}</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                  <span class="badge badge-neutral" style="font-size:11px;">${sanitizeHTML(cpfDisplay)}</span>
+                  <span class="badge badge-neutral" style="font-size:11px;">${sanitizeHTML(regId)}</span>
+                  <span class="badge badge-${getStatusBadgeType(patientData?.status || 'approved')}" style="font-size:11px;">${getStatusLabel(patientData?.status || 'approved')}</span>
                 </div>
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Status do Cadastro</span>
-                  <span class="badge badge-${getStatusBadgeType(patientData.status)}">${getStatusLabel(patientData.status)}</span>
-                </div>
-              ` : ''}
-              <div class="verification-field">
-                <span class="text-muted text-sm">Via</span>
-                <strong>${sanitizeHTML(getViaLabel(qrRecord.via || patientData?.via || ''))}</strong>
               </div>
             </div>
-          </div>
-        </div>
-      `;
-
-      // Product info
-      html += `
-        <div class="card mt-md">
-          <div class="card-header">
-            <h3 class="card-title">Produto</h3>
-          </div>
-          <div class="card-body">
             <div class="verification-data">
+              <div class="verification-field">
+                <span class="text-muted text-sm">Via de Acesso</span>
+                <strong>${sanitizeHTML(viaLabel)}</strong>
+              </div>
               <div class="verification-field">
                 <span class="text-muted text-sm">Produto</span>
                 <strong>${sanitizeHTML(qrRecord.product || patientData?.product_name || '—')}</strong>
               </div>
               <div class="verification-field">
-                <span class="text-muted text-sm">Quantidade para Transporte</span>
+                <span class="text-muted text-sm">Quantidade Autorizada</span>
                 <strong>${sanitizeHTML(qrRecord.quantity || patientData?.transport_quantity || '—')}</strong>
               </div>
               ${patientData?.dosage ? `
@@ -492,18 +494,150 @@ const Agent = (() => {
                   <strong>${sanitizeHTML(patientData.dosage)}</strong>
                 </div>
               ` : ''}
-              ${qrRecord.legal_reference ? `
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Referência Legal</span>
-                  <strong>${sanitizeHTML(qrRecord.legal_reference)}</strong>
-                </div>
-              ` : ''}
             </div>
           </div>
         </div>
       `;
 
-      // Medical / Legal info
+      // ═══ STATS CARDS — Transport overview ═══
+      const totalTrips = allTravelHistory.length;
+      const thirtyDaysAgo = dayjs().subtract(30, 'day');
+      const tripsLast30 = allTravelHistory.filter(t => dayjs(t.created_at).isAfter(thirtyDaysAgo)).length;
+      const totalVerifications = patientVerifications.length;
+      const lastVerifDate = patientVerifications.length > 0 ? formatDate(patientVerifications[0].created_at) : '—';
+
+      html += `
+        <div class="stats-grid mt-md" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+          <div class="stat-card green">
+            <div class="stat-info" style="text-align:center;width:100%;">
+              <div class="stat-value green">${totalTrips}</div>
+              <div class="stat-label">Viagens Registradas</div>
+            </div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-info" style="text-align:center;width:100%;">
+              <div class="stat-value blue">${tripsLast30}</div>
+              <div class="stat-label">Últimos 30 Dias</div>
+            </div>
+          </div>
+          <div class="stat-card gold">
+            <div class="stat-info" style="text-align:center;width:100%;">
+              <div class="stat-value gold">${totalVerifications}</div>
+              <div class="stat-label">Verificações</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info" style="text-align:center;width:100%;">
+              <div class="stat-value" style="font-size:14px;">${lastVerifDate}</div>
+              <div class="stat-label">Última Verificação</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // ═══ TRANSPORT HISTORY CHART (last 6 months) ═══
+      if (allTravelHistory.length > 0) {
+        html += `
+          <div class="card mt-md">
+            <div class="card-header">
+              <h3 class="card-title">Volume de Transportes (6 meses)</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container" style="height:220px;">
+                <canvas id="chart-patient-trips"></canvas>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══ CURRENT TRAVEL DATA ═══
+      if (travelData) {
+        html += `
+          <div class="card mt-md">
+            <div class="card-header">
+              <h3 class="card-title">Viagem Atual</h3>
+              <span class="badge badge-success" style="font-size:11px;">Ativa</span>
+            </div>
+            <div class="card-body">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <div style="flex:1;text-align:center;padding:12px;background:var(--surface-2);border-radius:var(--radius-sm);">
+                  <div class="text-xs text-muted" style="margin-bottom:4px;">Origem</div>
+                  <strong class="text-sm">${sanitizeHTML(travelData.origin || '—')}</strong>
+                </div>
+                <div style="color:var(--green);flex-shrink:0;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </div>
+                <div style="flex:1;text-align:center;padding:12px;background:var(--surface-2);border-radius:var(--radius-sm);">
+                  <div class="text-xs text-muted" style="margin-bottom:4px;">Destino</div>
+                  <strong class="text-sm">${sanitizeHTML(travelData.destination || '—')}</strong>
+                </div>
+              </div>
+              <div class="verification-data">
+                <div class="verification-field">
+                  <span class="text-muted text-sm">Data de Partida</span>
+                  <strong>${formatDate(travelData.departure_date)}</strong>
+                </div>
+                <div class="verification-field">
+                  <span class="text-muted text-sm">Transporte</span>
+                  <strong>${sanitizeHTML(getTransportLabel(travelData.transport_type))}</strong>
+                </div>
+                ${travelData.flight_or_bus ? `
+                  <div class="verification-field">
+                    <span class="text-muted text-sm">Voo / Linha</span>
+                    <strong>${sanitizeHTML(travelData.flight_or_bus)}</strong>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══ TRAVEL HISTORY TABLE ═══
+      if (allTravelHistory.length > 0) {
+        const historyRows = allTravelHistory.slice(0, 10).map(t => {
+          const date = formatDate(t.departure_date || t.created_at);
+          const origin = sanitizeHTML(t.origin || '—');
+          const dest = sanitizeHTML(t.destination || '—');
+          const transport = sanitizeHTML(getTransportLabel(t.transport_type));
+          return `
+            <tr>
+              <td class="text-sm">${date}</td>
+              <td class="text-sm">${origin}</td>
+              <td class="text-sm">${dest}</td>
+              <td class="text-sm">${transport}</td>
+            </tr>
+          `;
+        }).join('');
+
+        html += `
+          <div class="card mt-md">
+            <div class="card-header">
+              <h3 class="card-title">Histórico de Viagens</h3>
+              <span class="badge badge-neutral">${allTravelHistory.length} registro${allTravelHistory.length > 1 ? 's' : ''}</span>
+            </div>
+            <div class="card-body" style="overflow-x:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Origem</th>
+                    <th>Destino</th>
+                    <th>Transporte</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${historyRows}
+                </tbody>
+              </table>
+              ${allTravelHistory.length > 10 ? `<p class="text-xs text-muted mt-sm text-center">Exibindo as 10 viagens mais recentes de ${allTravelHistory.length} total</p>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══ MEDICAL / LEGAL INFO ═══
       if (patientData) {
         const isHC = patientData.via === 'hc';
         html += `
@@ -540,41 +674,10 @@ const Agent = (() => {
                     <strong>${sanitizeHTML(patientData.court || '—')}</strong>
                   </div>
                 `}
-              </div>
-            </div>
-          </div>
-        `;
-      }
-
-      // Travel data
-      if (travelData) {
-        html += `
-          <div class="card mt-md">
-            <div class="card-header">
-              <h3 class="card-title">Dados de Viagem</h3>
-            </div>
-            <div class="card-body">
-              <div class="verification-data">
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Origem</span>
-                  <strong>${sanitizeHTML(travelData.origin || '—')}</strong>
-                </div>
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Destino</span>
-                  <strong>${sanitizeHTML(travelData.destination || '—')}</strong>
-                </div>
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Data de Partida</span>
-                  <strong>${formatDate(travelData.departure_date)}</strong>
-                </div>
-                <div class="verification-field">
-                  <span class="text-muted text-sm">Tipo de Transporte</span>
-                  <strong>${sanitizeHTML(getTransportLabel(travelData.transport_type))}</strong>
-                </div>
-                ${travelData.flight_or_bus ? `
+                ${qrRecord.legal_reference ? `
                   <div class="verification-field">
-                    <span class="text-muted text-sm">Voo / Linha</span>
-                    <strong>${sanitizeHTML(travelData.flight_or_bus)}</strong>
+                    <span class="text-muted text-sm">Referência Legal</span>
+                    <strong>${sanitizeHTML(qrRecord.legal_reference)}</strong>
                   </div>
                 ` : ''}
               </div>
@@ -583,15 +686,63 @@ const Agent = (() => {
         `;
       }
 
-      // Documents
+      // ═══ DOCUMENTS — with open/view capability ═══
       if (documents && documents.length > 0) {
         html += `
           <div class="card mt-md">
             <div class="card-header">
-              <h3 class="card-title">Documentos</h3>
+              <h3 class="card-title">Documentos Anexados</h3>
+              <span class="badge badge-neutral">${documents.length} arquivo${documents.length > 1 ? 's' : ''}</span>
             </div>
             <div class="card-body" id="documents-list">
               <div class="text-center text-muted"><div class="spinner"></div></div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══ VERIFICATION HISTORY ═══
+      if (patientVerifications.length > 0) {
+        const verifRows = patientVerifications.slice(0, 8).map(v => {
+          const date = formatDateTime(v.created_at);
+          const resultBadge = {
+            valid: '<span class="badge badge-success">Válido</span>',
+            invalid: '<span class="badge badge-danger">Inválido</span>',
+            expired: '<span class="badge badge-warning">Expirado</span>'
+          };
+          const agentName = sanitizeHTML(v.agent_name || '—');
+          const location = sanitizeHTML(v.agent_location || '—');
+          return `
+            <tr>
+              <td class="text-sm">${date}</td>
+              <td>${resultBadge[v.result] || `<span class="badge badge-neutral">${sanitizeHTML(v.result)}</span>`}</td>
+              <td class="text-sm">${agentName}</td>
+              <td class="text-sm">${location}</td>
+            </tr>
+          `;
+        }).join('');
+
+        html += `
+          <div class="card mt-md">
+            <div class="card-header">
+              <h3 class="card-title">Histórico de Verificações</h3>
+              <span class="badge badge-neutral">${patientVerifications.length} registro${patientVerifications.length > 1 ? 's' : ''}</span>
+            </div>
+            <div class="card-body" style="overflow-x:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Data/Hora</th>
+                    <th>Resultado</th>
+                    <th>Agente</th>
+                    <th>Local</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${verifRows}
+                </tbody>
+              </table>
+              ${patientVerifications.length > 8 ? `<p class="text-xs text-muted mt-sm text-center">Exibindo as 8 verificações mais recentes de ${patientVerifications.length} total</p>` : ''}
             </div>
           </div>
         `;
@@ -609,15 +760,81 @@ const Agent = (() => {
 
     // Bind new verification button
     document.getElementById('new-verification-btn')?.addEventListener('click', () => {
-      const mainContainer = container.closest('.main-content') || container.parentElement;
-      // Re-render scanner page
+      if (chartPatientTrips) { chartPatientTrips.destroy(); chartPatientTrips = null; }
       renderScanner(document.querySelector('[data-page-content]') || container.parentElement);
     });
 
-    // Load document signed URLs
+    // Load document signed URLs with view buttons
     if (documents && documents.length > 0) {
       loadDocumentLinks(documents);
     }
+
+    // Render transport volume chart
+    if (allTravelHistory.length > 0) {
+      renderPatientTripsChart(allTravelHistory);
+    }
+  }
+
+  function renderPatientTripsChart(travelHistory) {
+    const canvas = document.getElementById('chart-patient-trips');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    if (chartPatientTrips) { chartPatientTrips.destroy(); chartPatientTrips = null; }
+
+    // Build monthly data for last 6 months
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      months.push(dayjs().subtract(i, 'month'));
+    }
+
+    const monthLabels = months.map(m => m.format('MMM/YY'));
+    const monthCounts = months.map(m => {
+      const startOfMonth = m.startOf('month');
+      const endOfMonth = m.endOf('month');
+      return travelHistory.filter(t => {
+        const d = dayjs(t.departure_date || t.created_at);
+        return d.isAfter(startOfMonth) && d.isBefore(endOfMonth);
+      }).length;
+    });
+
+    chartPatientTrips = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [{
+          label: 'Viagens',
+          data: monthCounts,
+          backgroundColor: 'rgba(61, 214, 140, 0.3)',
+          borderColor: '#3dd68c',
+          borderWidth: 2,
+          borderRadius: 6,
+          barPercentage: 0.6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.parsed.y} viagen${ctx.parsed.y !== 1 ? 's' : ''}`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, color: '#9ca3af' },
+            grid: { color: 'rgba(255,255,255,0.06)' }
+          },
+          x: {
+            ticks: { color: '#9ca3af' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
   }
 
   async function loadDocumentLinks(documents) {
@@ -652,15 +869,30 @@ const Agent = (() => {
             ? '<span class="badge badge-danger">Rejeitado</span>'
             : '<span class="badge badge-neutral">Enviado</span>';
 
+        const fileExt = (doc.file_name || '').split('.').pop()?.toLowerCase() || '';
+        const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt);
+        const isPdf = fileExt === 'pdf';
+        const fileIcon = isPdf
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+          : isImage
+            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
         html += `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--border);">
-            <div>
-              <strong class="text-sm">${sanitizeHTML(label)}</strong>
-              <p class="text-xs text-muted">${sanitizeHTML(doc.file_name || '—')}</p>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--radius-sm);background:var(--surface-2);margin-bottom:8px;">
+            <div style="flex-shrink:0;">${fileIcon}</div>
+            <div style="flex:1;min-width:0;">
+              <strong class="text-sm" style="display:block;">${sanitizeHTML(label)}</strong>
+              <p class="text-xs text-muted" style="margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sanitizeHTML(doc.file_name || '—')}</p>
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
               ${statusBadge}
-              ${url !== '#' ? `<a href="${url}" target="_blank" class="btn btn-sm btn-secondary">Visualizar</a>` : ''}
+              ${url !== '#' ? `
+                <a href="${url}" target="_blank" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:4px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Abrir
+                </a>
+              ` : ''}
             </div>
           </div>
         `;
@@ -892,12 +1124,11 @@ const Agent = (() => {
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false });
 
-      // Fetch travel data
+      // Fetch ALL travel data
       const { data: tData } = await sb.from('travel_data')
         .select('*')
         .eq('patient_id', patientId)
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
 
       // Fetch QR code
       const { data: qrData } = await sb.from('qr_codes')
@@ -907,9 +1138,18 @@ const Agent = (() => {
         .order('created_at', { ascending: false })
         .limit(1);
 
+      // Fetch verifications for this patient
+      const { data: vData } = await sb.from('verifications')
+        .select('*')
+        .eq('patient_name', patientData.full_name)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
       const qrRecord = qrData && qrData.length > 0 ? qrData[0] : null;
-      const travelData = tData && tData.length > 0 ? tData[0] : null;
+      const allTravelHistory = tData || [];
+      const travelData = allTravelHistory.length > 0 ? allTravelHistory[0] : null;
       const documents = docs || [];
+      const patientVerifications = vData || [];
 
       // Build a synthetic result for rendering
       const fakeResult = qrRecord ? (qrRecord.is_active ? 'valid' : 'invalid') : 'invalid';
@@ -923,7 +1163,7 @@ const Agent = (() => {
         via: patientData.via,
         product: patientData.product_name,
         quantity: patientData.transport_quantity
-      }, patientData, travelData, documents);
+      }, patientData, travelData, documents, false, allTravelHistory, patientVerifications);
 
       // Add "Registrar Verificação Manual" button before the "Nova Verificação" button
       const newVerBtn = document.getElementById('new-verification-btn');

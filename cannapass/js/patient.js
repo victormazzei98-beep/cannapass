@@ -55,6 +55,7 @@ const Patient = (() => {
       case 'historico': renderHistorico(container); break;
       case 'suporte': renderSuporte(container); break;
       case 'diretorio': renderDiretorio(container); break;
+      case 'ajuda': renderAjuda(container); break;
       default: renderDashboard(container);
     }
   }
@@ -1980,5 +1981,259 @@ const Patient = (() => {
   }
 
   // ─── Public API ───
+  // ═══════════════════════════════════════
+  //  PRECISO DE AJUDA (chamados ao Diretório)
+  // ═══════════════════════════════════════
+  function helpCategoryLabel(v) {
+    const c = HELP_CATEGORIES.find(x => x.value === v);
+    return c ? c.label : (v || '—');
+  }
+
+  function helpUrgencyBadge(u) {
+    const map = {
+      emergencia: ['badge-danger',  'Emergência'],
+      urgente:    ['badge-warning', 'Urgente'],
+      normal:     ['badge-info',    'Normal']
+    };
+    const [cls, label] = map[u] || map.normal;
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  function renderAjuda(container) {
+    const patient = State.get('patient');
+
+    if (!patient) {
+      container.innerHTML = `
+        <div class="page-header"><h2>Preciso de Ajuda</h2></div>
+        <div class="card"><div class="card-body">
+          <div class="empty-state">
+            <h4>Complete seu cadastro</h4>
+            <p>Você precisa ter um cadastro para acionar nossos consultores.</p>
+            <button class="btn btn-primary mt-md" onclick="Router.navigate('cadastro')">Ir para o Cadastro</button>
+          </div>
+        </div></div>`;
+      return;
+    }
+
+    const ufOpts = Object.keys(UF_NAMES).sort()
+      .map(uf => `<option value="${uf}">${uf} — ${sanitizeHTML(UF_NAMES[uf])}</option>`).join('');
+
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>Preciso de Ajuda</h2>
+        <p>Nosso time de consultores parceiros atende você — médicos, advogados, engenheiros e associações</p>
+      </div>
+
+      <div class="card mb-md">
+        <div class="card-body">
+          <form id="help-form" class="form-stack">
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="h-category">Sobre o que você precisa de ajuda? *</label>
+                <select class="form-select" id="h-category" required>
+                  <option value="">Selecione...</option>
+                  ${HELP_CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="h-urgency">Urgência *</label>
+                <select class="form-select" id="h-urgency" required>
+                  ${URGENCY_LEVELS.map(u => `<option value="${u.value}">${u.label}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="h-state">Onde você está? *</label>
+                <select class="form-select" id="h-state" required>
+                  <option value="">Selecione o estado...</option>
+                  ${ufOpts}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="h-subject">Assunto *</label>
+                <input class="form-input" type="text" id="h-subject" placeholder="Resuma em poucas palavras" required maxlength="120">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="h-description">Descreva o que está acontecendo</label>
+              <textarea class="form-input" id="h-description" rows="3" placeholder="Quanto mais detalhes, mais rápido o consultor consegue ajudar..."></textarea>
+            </div>
+
+            <div id="h-emergency-note" class="hidden">
+              <p class="text-sm" style="color:var(--red);">
+                <strong>Emergência:</strong> abriremos o chamado com prioridade máxima. Se estiver sendo abordado agora,
+                mantenha a calma, apresente seu QR Code e aguarde o contato do consultor.
+              </p>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg btn-block" id="help-submit">
+              Acionar um consultor
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h4 class="mb-md">Meus Chamados</h4>
+          <div id="help-list"><div class="flex-center"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    `;
+
+    const urgencySel = document.getElementById('h-urgency');
+    const note = document.getElementById('h-emergency-note');
+    urgencySel?.addEventListener('change', () => {
+      note?.classList.toggle('hidden', urgencySel.value !== 'emergencia');
+    });
+
+    document.getElementById('help-form')?.addEventListener('submit', handleHelpSubmit);
+    loadMeusChamados();
+  }
+
+  async function handleHelpSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('help-submit');
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+
+    try {
+      const patient = State.get('patient');
+      const userId = State.get('user').id;
+      const category = document.getElementById('h-category').value;
+      const urgency = document.getElementById('h-urgency').value;
+      const state = document.getElementById('h-state').value;
+      const subject = document.getElementById('h-subject').value.trim();
+      const description = document.getElementById('h-description').value.trim() || null;
+
+      if (!category || !urgency || !state || !subject) {
+        Toast.error('Preencha os campos obrigatórios.');
+        return;
+      }
+
+      const { error } = await sb.from('help_requests').insert({
+        patient_id: patient.id,
+        user_id: userId,
+        category, urgency, state, subject, description,
+        status: 'open'
+      });
+      if (error) throw error;
+
+      Toast.success('Chamado aberto! Um consultor será notificado.');
+      document.getElementById('help-form').reset();
+      document.getElementById('h-emergency-note')?.classList.add('hidden');
+      await loadMeusChamados();
+    } catch (err) {
+      console.error('[Patient] Help request error:', err);
+      Toast.error(err.message || 'Erro ao abrir o chamado.');
+    } finally {
+      btn.classList.remove('btn-loading');
+      btn.disabled = false;
+    }
+  }
+
+  async function loadMeusChamados() {
+    const list = document.getElementById('help-list');
+    if (!list) return;
+
+    const userId = State.get('user')?.id;
+    const { data, error } = await sb.from('help_requests')
+      .select('*, consultants(full_name, profession, phone, whatsapp)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) { list.innerHTML = '<p class="text-muted">Erro ao carregar chamados.</p>'; return; }
+    if (!data || !data.length) {
+      list.innerHTML = `<div class="empty-state"><p>Você ainda não abriu nenhum chamado.</p></div>`;
+      return;
+    }
+
+    const statusText = { open: 'Aguardando consultor', assigned: 'Em atendimento', resolved: 'Resolvido', closed: 'Encerrado' };
+    list.innerHTML = data.map(r => {
+      const c = r.consultants || null;
+      return `
+      <div class="card mb-sm" style="background:var(--surface-2);">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            ${helpUrgencyBadge(r.urgency)}
+            <span class="badge badge-info">${helpCategoryLabel(r.category)}</span>
+            <span class="badge ${r.status === 'resolved' ? 'badge-success' : r.status === 'assigned' ? 'badge-warning' : 'badge-info'}">${statusText[r.status] || r.status}</span>
+          </div>
+          <div style="font-weight:600;margin-top:8px;">${sanitizeHTML(r.subject)}</div>
+          ${c ? `
+          <div class="text-sm text-muted mt-sm">
+            Atendido por <strong>${sanitizeHTML(c.full_name)}</strong>
+            ${c.whatsapp ? ` · <a href="https://wa.me/55${sanitizeHTML((c.whatsapp || '').replace(/\D/g,''))}" target="_blank" rel="noopener" style="color:var(--green);">WhatsApp</a>` : ''}
+          </div>` : '<div class="text-sm text-muted mt-sm">Aguardando um consultor assumir...</div>'}
+          ${c ? `
+          <button class="btn btn-secondary mt-sm p-open-chat" data-id="${r.id}">Abrir conversa</button>
+          <div class="chat-box hidden" id="pchat-${r.id}" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+            <div id="pmsgs-${r.id}" style="max-height:260px;overflow-y:auto;"></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <input class="form-input" type="text" id="pinput-${r.id}" placeholder="Escreva sua mensagem..." style="flex:1;">
+              <button class="btn btn-primary p-send" data-id="${r.id}">Enviar</button>
+            </div>
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll('.p-open-chat').forEach(b => b.addEventListener('click', () => {
+      const box = document.getElementById(`pchat-${b.dataset.id}`);
+      box?.classList.toggle('hidden');
+      if (box && !box.classList.contains('hidden')) loadMensagensPaciente(b.dataset.id);
+    }));
+    list.querySelectorAll('.p-send').forEach(b => b.addEventListener('click', () => enviarMensagemPaciente(b.dataset.id)));
+  }
+
+  async function loadMensagensPaciente(id) {
+    const el = document.getElementById(`pmsgs-${id}`);
+    if (!el) return;
+    const { data } = await sb.from('help_messages')
+      .select('*').eq('request_id', id).order('created_at', { ascending: true });
+
+    if (!data || !data.length) {
+      el.innerHTML = '<p class="text-muted text-sm">Nenhuma mensagem ainda.</p>';
+      return;
+    }
+    const myId = State.get('user')?.id;
+    el.innerHTML = data.map(m => {
+      const mine = m.sender_id === myId;
+      return `
+        <div style="margin-bottom:8px;text-align:${mine ? 'right' : 'left'};">
+          <div style="display:inline-block;max-width:80%;padding:8px 12px;border-radius:12px;
+                      background:${mine ? 'var(--green)' : 'var(--surface)'};
+                      color:${mine ? '#0c1a12' : 'var(--text)'};text-align:left;">
+            <div style="font-size:.85rem;">${sanitizeHTML(m.body)}</div>
+            <div style="font-size:.7rem;opacity:.7;margin-top:2px;">${formatDate(m.created_at)}</div>
+          </div>
+        </div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function enviarMensagemPaciente(id) {
+    const input = document.getElementById(`pinput-${id}`);
+    const body = input?.value.trim();
+    if (!body) return;
+    try {
+      const { error } = await sb.from('help_messages').insert({
+        request_id: id,
+        sender_id: State.get('user').id,
+        sender_role: 'patient',
+        body
+      });
+      if (error) throw error;
+      input.value = '';
+      await loadMensagensPaciente(id);
+    } catch (err) {
+      console.error('[Patient] Help message error:', err);
+      Toast.error('Erro ao enviar mensagem.');
+    }
+  }
+
   return { render, _nextStep, _prevStep, _startRenewal };
 })();

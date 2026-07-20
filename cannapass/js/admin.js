@@ -46,6 +46,7 @@ const Admin = (() => {
       case 'auditoria': renderAuditoria(container); break;
       case 'usuarios': renderUsuarios(container); break;
       case 'diretorio-admin': renderDiretorioAdmin(container); break;
+      case 'consultores': renderConsultores(container); break;
       case 'configuracoes': renderConfiguracoes(container); break;
       default: renderDashboard(container);
     }
@@ -3078,6 +3079,131 @@ const Admin = (() => {
       btn.disabled = false;
       btn.textContent = 'Salvar configurações';
     });
+  }
+
+  // ═══════════════════════════════════════
+  //  CONSULTORES (aprovação da rede de parceiros)
+  // ═══════════════════════════════════════
+  async function renderConsultores(container) {
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>Consultores</h2>
+        <p>Aprove os profissionais que atenderão os pacientes no Diretório</p>
+      </div>
+      <div id="consultores-content"><div class="flex-center"><div class="spinner"></div></div></div>
+    `;
+    await loadConsultores();
+  }
+
+  async function loadConsultores() {
+    const box = document.getElementById('consultores-content');
+    if (!box) return;
+
+    const { data, error } = await sb.from('consultants')
+      .select('*, consultant_documents(id, doc_type, file_name, file_path, status)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      box.innerHTML = '<div class="card"><div class="card-body"><p class="text-muted">Erro ao carregar consultores.</p></div></div>';
+      return;
+    }
+    if (!data || !data.length) {
+      box.innerHTML = `
+        <div class="card"><div class="card-body"><div class="empty-state">
+          <h4>Nenhum consultor cadastrado</h4>
+          <p>Profissionais que se cadastrarem como Consultor aparecem aqui para aprovação.</p>
+        </div></div></div>`;
+      return;
+    }
+
+    const profLabel = v => (PROFESSIONS.find(p => p.value === v) || {}).label || v;
+    const statusBadge = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+    const statusText  = { pending: 'Aguardando aprovação', approved: 'Aprovado', rejected: 'Recusado' };
+    const docLabel = {
+      professional_license: 'Carteira profissional',
+      identity: 'Identidade',
+      certificate: 'Certificado',
+      other: 'Outro'
+    };
+
+    // Pendentes primeiro
+    const sorted = data.slice().sort((a, b) =>
+      (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
+
+    box.innerHTML = sorted.map(c => {
+      const docs = c.consultant_documents || [];
+      return `
+      <div class="card mb-sm">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="badge ${statusBadge[c.status] || 'badge-info'}">${statusText[c.status] || c.status}</span>
+            <span class="badge badge-info">${profLabel(c.profession)}</span>
+          </div>
+          <div style="font-weight:600;font-size:1.05rem;margin-top:8px;">${sanitizeHTML(c.full_name)}</div>
+          <div class="text-sm text-muted">
+            ${sanitizeHTML(c.license_type || 'Registro')} ${sanitizeHTML(c.license_number || '—')}${c.license_uf ? '/' + sanitizeHTML(c.license_uf) : ''}
+            ${c.specialty ? ' · ' + sanitizeHTML(c.specialty) : ''}
+            ${c.state ? ' · ' + sanitizeHTML(c.state) : ''}${c.city ? ' — ' + sanitizeHTML(c.city) : ''}
+          </div>
+          ${c.bio ? `<p class="text-sm mt-sm">${sanitizeHTML(c.bio)}</p>` : ''}
+          <div class="text-sm text-muted mt-sm">
+            ${c.phone ? 'Tel: ' + sanitizeHTML(c.phone) : ''}
+            ${c.whatsapp ? ' · WhatsApp: ' + sanitizeHTML(c.whatsapp) : ''}
+            ${c.instagram ? ' · ' + sanitizeHTML(c.instagram) : ''}
+          </div>
+
+          <div class="mt-sm">
+            <strong class="text-sm">Documentos (${docs.length})</strong>
+            ${docs.length ? `<ul class="text-sm text-muted" style="margin:6px 0 0 18px;">
+              ${docs.map(d => `<li>${docLabel[d.doc_type] || d.doc_type} — ${sanitizeHTML(d.file_name)}
+                <button class="btn btn-sm btn-secondary view-cdoc" data-path="${sanitizeHTML(d.file_path)}" style="margin-left:6px;">Ver</button></li>`).join('')}
+            </ul>` : '<p class="text-sm text-muted">Nenhum documento enviado.</p>'}
+          </div>
+
+          ${c.status === 'pending' ? `
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-primary approve-consultant" data-id="${c.id}">Aprovar</button>
+            <button class="btn btn-danger reject-consultant" data-id="${c.id}">Recusar</button>
+          </div>` : ''}
+          ${c.status === 'rejected' && c.rejection_reason ? `<p class="text-sm mt-sm" style="color:var(--red);">Motivo: ${sanitizeHTML(c.rejection_reason)}</p>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    box.querySelectorAll('.approve-consultant').forEach(b =>
+      b.addEventListener('click', () => decideConsultant(b.dataset.id, 'approved')));
+    box.querySelectorAll('.reject-consultant').forEach(b =>
+      b.addEventListener('click', () => decideConsultant(b.dataset.id, 'rejected')));
+    box.querySelectorAll('.view-cdoc').forEach(b =>
+      b.addEventListener('click', async () => {
+        const { data, error } = await sb.storage.from(STORAGE_BUCKET)
+          .createSignedUrl(b.dataset.path, SIGNED_URL_EXPIRY);
+        if (error || !data?.signedUrl) { Toast.error('Não foi possível abrir o documento.'); return; }
+        window.open(data.signedUrl, '_blank', 'noopener');
+      }));
+  }
+
+  async function decideConsultant(id, decision) {
+    let reason = null;
+    if (decision === 'rejected') {
+      reason = prompt('Motivo da recusa (o consultor verá esta mensagem):');
+      if (reason === null) return;
+    }
+
+    try {
+      const payload = decision === 'approved'
+        ? { status: 'approved', approved_at: new Date().toISOString(), approved_by: State.get('user').id, rejection_reason: null }
+        : { status: 'rejected', rejection_reason: reason || 'Não informado' };
+
+      const { error } = await sb.from('consultants').update(payload).eq('id', id);
+      if (error) throw error;
+
+      Toast.success(decision === 'approved' ? 'Consultor aprovado!' : 'Cadastro recusado.');
+      await loadConsultores();
+    } catch (err) {
+      console.error('[Admin] Consultant decision error:', err);
+      Toast.error('Erro ao atualizar o consultor.');
+    }
   }
 
   // ─── Public API ───

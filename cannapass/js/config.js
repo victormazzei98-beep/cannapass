@@ -13,8 +13,34 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ROLES = Object.freeze({
   PATIENT: 'patient',
   AGENT: 'agent',
-  ADMIN: 'admin'
+  ADMIN: 'admin',
+  CONSULTANT: 'consultant'
 });
+
+// ─── Consultores (rede de parceiros do Diretório) ───
+const PROFESSIONS = Object.freeze([
+  { value: 'medico',     label: 'Médico(a)',                 license: 'CRM' },
+  { value: 'advogado',   label: 'Advogado(a)',               license: 'OAB' },
+  { value: 'engenheiro', label: 'Engenheiro(a) agrônomo(a)', license: 'CREA' },
+  { value: 'associacao', label: 'Associação de pacientes',   license: 'CNPJ' },
+  { value: 'outro',      label: 'Outro profissional',        license: 'Registro' }
+]);
+
+// ─── Chamados de ajuda (Diretório / plantão) ───
+const HELP_CATEGORIES = Object.freeze([
+  { value: 'documento', label: 'Documentação' },
+  { value: 'abordagem', label: 'Abordagem / fiscalização' },
+  { value: 'juridico',  label: 'Dúvida jurídica' },
+  { value: 'medico',    label: 'Dúvida médica' },
+  { value: 'cultivo',   label: 'Cultivo' },
+  { value: 'outro',     label: 'Outro' }
+]);
+
+const URGENCY_LEVELS = Object.freeze([
+  { value: 'normal',     label: 'Normal' },
+  { value: 'urgente',    label: 'Urgente' },
+  { value: 'emergencia', label: 'Emergência — estou sendo abordado agora' }
+]);
 
 // ─── Registration Status ───
 const STATUS = Object.freeze({

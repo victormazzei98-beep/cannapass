@@ -9,11 +9,16 @@ const State = (() => {
     user: null,           // Supabase auth user
     profile: null,        // profiles table row (role, full_name, etc.)
     patient: null,        // patients table row (registration data)
+    consultant: null,     // consultants table row (partner profile)
     activeRole: null,     // role being used (admin can switch to patient)
     currentPage: null,    // current page/route identifier
     theme: null,          // 'dark' | 'light'
     sidebarOpen: false,   // mobile sidebar toggle
-    loading: true         // global loading state
+    loading: true,        // global loading state
+    agentPending: false,      // agent awaiting admin approval
+    agentRejected: false,     // agent rejected by admin
+    consultantPending: false, // consultant awaiting admin approval
+    consultantRejected: false // consultant rejected by admin
   };
 
   // ─── Subscribers: { key: [callback, ...] } ───

@@ -58,7 +58,7 @@ const Auth = (() => {
           const profile = State.get('profile');
           if (isAdminWithPortalChoice(profile) && !State.get('activeRole')) {
             showPortalSelect();
-          } else if (State.get('agentPending') || State.get('agentRejected')) {
+          } else if (State.get('agentPending') || State.get('agentRejected') || State.get('consultantPending') || State.get('consultantRejected')) {
             showAgentPending();
           } else {
             showApp();
@@ -105,7 +105,7 @@ const Auth = (() => {
           const prof = State.get('profile');
           if (isAdminWithPortalChoice(prof) && !State.get('activeRole')) {
             showPortalSelect();
-          } else if (State.get('agentPending') || State.get('agentRejected')) {
+          } else if (State.get('agentPending') || State.get('agentRejected') || State.get('consultantPending') || State.get('consultantRejected')) {
             showAgentPending();
           } else {
             showApp();
@@ -165,6 +165,26 @@ const Auth = (() => {
       } else {
         State.set('activeRole', ROLES.AGENT);
       }
+    } else if (profile.role === ROLES.CONSULTANT) {
+      // O cadastro profissional é preenchido depois do signup (como o wizard do
+      // paciente). Sem cadastro, o portal abre direto no formulário.
+      const { data: consultant } = await sb
+        .from('consultants')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      State.set('consultant', consultant || null);
+
+      if (consultant && consultant.status === 'pending') {
+        State.set('activeRole', null);
+        State.set('consultantPending', true);
+      } else if (consultant && consultant.status === 'rejected') {
+        State.set('activeRole', null);
+        State.set('consultantRejected', true);
+      } else {
+        State.set('activeRole', ROLES.CONSULTANT);
+      }
     }
     // Admin activeRole is set via portal selection screen
 
@@ -183,6 +203,14 @@ const Auth = (() => {
     const profile = State.get('profile');
     const emailEl = document.getElementById('agent-pending-email');
     if (emailEl) emailEl.textContent = profile?.email || State.get('user')?.email || '';
+
+    // A mesma tela serve a agentes e consultores
+    const roleEl = document.getElementById('agent-pending-role');
+    if (roleEl) {
+      roleEl.textContent = profile?.role === ROLES.CONSULTANT
+        ? 'Consultor Parceiro'
+        : 'Agente Fiscalizador';
+    }
 
     document.getElementById('agent-pending-logout')?.addEventListener('click', logout);
   }

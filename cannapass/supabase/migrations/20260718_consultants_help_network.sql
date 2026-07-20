@@ -1,0 +1,5 @@
+-- Ver histórico aplicado no Supabase: consultants_and_help_requests_schema,
+-- consultants_help_requests_rls, help_requests_rpcs_and_auto_alert,
+-- consultant_documents_and_patient_access.
+-- Este arquivo consolida o schema da rede de consultores (Fase 1 + 2).
+-- (schema completo aplicado via MCP apply_migration em 2026-07-18)

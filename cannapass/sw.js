@@ -3,7 +3,7 @@
    Offline caching, PWA support
    ═══════════════════════════════════════════ */
 
-const CACHE_NAME = 'cannapass-v1';
+const CACHE_NAME = 'cannapass-v2';
 
 // Core app shell files to cache
 const APP_SHELL = [
@@ -24,6 +24,7 @@ const APP_SHELL = [
   '/js/router.js',
   '/js/patient.js',
   '/js/agent.js',
+  '/js/consultant.js',
   '/js/admin.js',
   '/js/notifications.js'
 ];

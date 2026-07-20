@@ -17,6 +17,7 @@ const Router = (() => {
       { id: 'qrcode', icon: Icons.qrcode, label: 'Meu QR Code', section: 'QR Code' },
       { id: 'historico', icon: Icons.historico, label: 'Histórico', section: 'QR Code' },
       { id: 'perfil', icon: Icons.perfil, label: 'Meu Perfil', section: 'Conta' },
+      { id: 'ajuda', icon: Icons.suporte, label: 'Preciso de Ajuda', section: 'Ajuda' },
       { id: 'diretorio', icon: Icons.diretorio, label: 'Diretório', section: 'Ajuda' },
       { id: 'suporte', icon: Icons.suporte, label: 'Suporte', section: 'Ajuda' }
     ],
@@ -27,6 +28,12 @@ const Router = (() => {
       { id: 'agent-stats', icon: Icons.relatorios, label: 'Estatísticas', section: 'Registros' },
       { id: 'guia', icon: Icons.guia, label: 'Guia', section: 'Suporte' }
     ],
+    [ROLES.CONSULTANT]: [
+      { id: 'plantao', icon: Icons.verificacoes, label: 'Plantão', section: 'Atendimento' },
+      { id: 'meus-atendimentos', icon: Icons.historico, label: 'Meus Atendimentos', section: 'Atendimento' },
+      { id: 'perfil-consultor', icon: Icons.perfil, label: 'Perfil Profissional', section: 'Conta' },
+      { id: 'documentos-consultor', icon: Icons.documentos, label: 'Documentos', section: 'Conta' }
+    ],
     [ROLES.ADMIN]: [
       { id: 'admin-dashboard', icon: Icons.dashboard, label: 'Dashboard', section: 'Principal' },
       { id: 'cadastros', icon: Icons.cadastro, label: 'Cadastros', section: 'Gestão' },
@@ -35,6 +42,7 @@ const Router = (() => {
       { id: 'relatorios', icon: Icons.relatorios, label: 'Relatórios', section: 'Sistema' },
       { id: 'auditoria', icon: Icons.historico, label: 'Auditoria', section: 'Sistema' },
       { id: 'usuarios', icon: Icons.usuarios, label: 'Usuários', section: 'Sistema' },
+      { id: 'consultores', icon: Icons.diretorio, label: 'Consultores', section: 'Gestão' },
       { id: 'diretorio-admin', icon: Icons.diretorio, label: 'Diretório', section: 'Configurações' },
       { id: 'configuracoes', icon: Icons.configuracoes, label: 'Configurações', section: 'Configurações' }
     ]
@@ -64,14 +72,21 @@ const Router = (() => {
     'diretorio': 'Diretório',
     'suporte': 'Suporte',
     'diretorio-admin': 'Diretório de Parceiros',
-    'configuracoes': 'Configurações'
+    'configuracoes': 'Configurações',
+    'plantao': 'Plantão de Atendimento',
+    'meus-atendimentos': 'Meus Atendimentos',
+    'perfil-consultor': 'Perfil Profissional',
+    'documentos-consultor': 'Meus Documentos',
+    'ajuda': 'Preciso de Ajuda',
+    'consultores': 'Consultores'
   };
 
   // ─── Portal Badges ───
   const PORTAL_BADGES = {
     [ROLES.PATIENT]: 'Portal do Paciente',
     [ROLES.AGENT]: 'Portal do Agente',
-    [ROLES.ADMIN]: 'Painel Administrativo'
+    [ROLES.ADMIN]: 'Painel Administrativo',
+    [ROLES.CONSULTANT]: 'Portal do Consultor'
   };
 
   // ─── Initialize Router ───
@@ -336,6 +351,9 @@ const Router = (() => {
           break;
         case ROLES.ADMIN:
           if (typeof Admin !== 'undefined') Admin.render(page, container);
+          break;
+        case ROLES.CONSULTANT:
+          if (typeof Consultant !== 'undefined') Consultant.render(page, container);
           break;
       }
 
