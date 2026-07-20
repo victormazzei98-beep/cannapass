@@ -1101,6 +1101,23 @@ const Patient = (() => {
   // ═══════════════════════════════════════
   //  VIAGEM
   // ═══════════════════════════════════════
+  // Monta as cidades disponíveis agrupadas por estado, para o paciente apenas
+  // selecionar (evita grafias divergentes como "Florianopolis" x "Florianópolis").
+  function cityOptionsHTML() {
+    const byUf = {};
+    Object.values(BRAZIL_CITIES).forEach(c => {
+      (byUf[c.uf] = byUf[c.uf] || []).push(c.name);
+    });
+    return Object.keys(byUf)
+      .sort((a, b) => (UF_NAMES[a] || a).localeCompare(UF_NAMES[b] || b, 'pt-BR'))
+      .map(uf => {
+        const cities = [...new Set(byUf[uf])].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        return `<optgroup label="${sanitizeHTML(UF_NAMES[uf] || uf)}">` +
+          cities.map(n => `<option value="${sanitizeHTML(n)}">${sanitizeHTML(n)}</option>`).join('') +
+          `</optgroup>`;
+      }).join('');
+  }
+
   function renderViagem(container) {
     const patient = State.get('patient');
 
@@ -1144,6 +1161,8 @@ const Patient = (() => {
       return;
     }
 
+    const cityOpts = cityOptionsHTML();
+
     container.innerHTML = `
       <div class="page-header">
         <h2>Registrar Viagem</h2>
@@ -1155,12 +1174,18 @@ const Patient = (() => {
             <div class="travel-route">
               <div class="form-group" style="flex:1;">
                 <label class="form-label" for="t-origin">Origem *</label>
-                <input class="form-input" type="text" id="t-origin" placeholder="Cidade de origem" required>
+                <select class="form-select" id="t-origin" required>
+                  <option value="">Selecione a cidade...</option>
+                  ${cityOpts}
+                </select>
               </div>
               <div class="travel-route-arrow">→</div>
               <div class="form-group" style="flex:1;">
                 <label class="form-label" for="t-destination">Destino *</label>
-                <input class="form-input" type="text" id="t-destination" placeholder="Cidade de destino" required>
+                <select class="form-select" id="t-destination" required>
+                  <option value="">Selecione a cidade...</option>
+                  ${cityOpts}
+                </select>
               </div>
             </div>
 
@@ -1196,15 +1221,14 @@ const Patient = (() => {
                 <label class="form-label" for="t-product">Produto *</label>
                 <select class="form-select" id="t-product" required>
                   <option value="">Selecione...</option>
-                  <option value="Flor">Flor</option>
-                  <option value="Óleo">Óleo</option>
-                  <option value="Concentrado">Concentrado</option>
-                  <option value="Outro">Outro</option>
+                  ${PRODUCT_OPTIONS.map(o => `<option value="${o}">${o}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group">
                 <label class="form-label" for="t-quantity">Quantidade *</label>
-                <input class="form-input" type="text" id="t-quantity" placeholder="Ex: 2 frascos / 30ml" required>
+                <select class="form-select" id="t-quantity" required disabled>
+                  <option value="">Selecione o produto primeiro</option>
+                </select>
               </div>
             </div>
 
@@ -1221,16 +1245,32 @@ const Patient = (() => {
       </div>
     `;
 
-    // Pré-preenche produto/quantidade com os dados do cadastro (editáveis por viagem)
-    const productInput = document.getElementById('t-product');
-    const quantityInput = document.getElementById('t-quantity');
-    if (productInput) {
-      // Pré-seleciona a opção do dropdown se o tipo do cadastro casar com uma das opções
-      const cadastroProduct = (patient.product_type || patient.product_name || '').trim().toLowerCase();
-      const match = Array.from(productInput.options).find(o => o.value && o.value.toLowerCase() === cadastroProduct);
-      if (match) productInput.value = match.value;
+    // A quantidade depende do produto: só oferece as medidas que fazem sentido
+    const productSel = document.getElementById('t-product');
+    const qtySel = document.getElementById('t-quantity');
+
+    function refreshQuantityOptions(preselect) {
+      if (!qtySel) return;
+      const opts = QUANTITY_OPTIONS[productSel?.value] || [];
+      if (!opts.length) {
+        qtySel.innerHTML = '<option value="">Selecione o produto primeiro</option>';
+        qtySel.disabled = true;
+        return;
+      }
+      qtySel.disabled = false;
+      qtySel.innerHTML = '<option value="">Selecione...</option>' +
+        opts.map(o => `<option value="${o}">${o}</option>`).join('');
+      if (preselect && opts.includes(preselect)) qtySel.value = preselect;
     }
-    if (quantityInput) quantityInput.value = patient.transport_quantity || patient.total_quantity || '';
+
+    if (productSel) {
+      // Pré-seleciona o produto do cadastro, quando casar com uma das opções
+      const cadastroProduct = (patient.product_type || patient.product_name || '').trim().toLowerCase();
+      const match = Array.from(productSel.options).find(o => o.value && o.value.toLowerCase() === cadastroProduct);
+      if (match) productSel.value = match.value;
+      productSel.addEventListener('change', () => refreshQuantityOptions());
+    }
+    refreshQuantityOptions((patient.transport_quantity || patient.total_quantity || '').trim());
 
     document.getElementById('travel-form')?.addEventListener('submit', handleTravelSubmit);
   }
