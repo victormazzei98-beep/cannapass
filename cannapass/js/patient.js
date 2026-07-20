@@ -428,8 +428,14 @@ const Patient = (() => {
             <input class="form-input" type="text" id="w-doctor-name" placeholder="Dr. João Silva" value="${sanitizeHTML(wizardData.doctor_name || '')}">
           </div>
           <div class="form-group">
-            <label class="form-label" for="w-doctor-crm">CRM *</label>
-            <input class="form-input" type="text" id="w-doctor-crm" placeholder="CRM/SP 123456" value="${sanitizeHTML(wizardData.doctor_crm || '')}">
+            <label class="form-label" for="w-crm-number">CRM *</label>
+            <div style="display:flex; gap:8px;">
+              <input class="form-input" type="text" inputmode="numeric" id="w-crm-number" placeholder="Número" style="flex:1;" value="${sanitizeHTML(parseCrm(wizardData.doctor_crm).number)}">
+              <select class="form-select" id="w-crm-uf" style="flex:1;" aria-label="Estado do CRM">
+                <option value="">UF...</option>
+                ${ufOptionsHTML(parseCrm(wizardData.doctor_crm).uf)}
+              </select>
+            </div>
           </div>
         </div>
         <div class="form-group">
@@ -453,8 +459,21 @@ const Patient = (() => {
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label" for="w-court">Vara / Tribunal *</label>
-          <input class="form-input" type="text" id="w-court" placeholder="Ex: 1ª Vara Criminal — TJ/SP" value="${sanitizeHTML(wizardData.court || '')}">
+          <label class="form-label" for="w-court-ordinal">Vara / Tribunal *</label>
+          <div style="display:flex; gap:8px;">
+            <select class="form-select" id="w-court-ordinal" style="flex:0 0 90px;" aria-label="Número da vara">
+              <option value="">Nº...</option>
+              ${ordinalOptionsHTML(parseCourt(wizardData.court).ordinal)}
+            </select>
+            <select class="form-select" id="w-court-type" style="flex:2;" aria-label="Tipo de vara">
+              <option value="">Selecione o tipo...</option>
+              ${courtTypeOptionsHTML(parseCourt(wizardData.court).type)}
+            </select>
+            <select class="form-select" id="w-court-uf" style="flex:1;" aria-label="Estado da vara">
+              <option value="">UF...</option>
+              ${ufOptionsHTML(parseCourt(wizardData.court).uf)}
+            </select>
+          </div>
         </div>
       </div>
     `;
@@ -620,12 +639,19 @@ const Patient = (() => {
       case 2:
         if (wizardData.via_type === VIA.PHARMACY) {
           wizardData.doctor_name = document.getElementById('w-doctor-name')?.value.trim() || '';
-          wizardData.doctor_crm = document.getElementById('w-doctor-crm')?.value.trim() || '';
+          wizardData.doctor_crm = composeCrm(
+            document.getElementById('w-crm-number')?.value,
+            document.getElementById('w-crm-uf')?.value
+          );
           wizardData.prescription_validity = document.getElementById('w-prescription-validity')?.value || '';
         } else if (wizardData.via_type === VIA.HABEAS) {
           wizardData.hc_number = document.getElementById('w-hc-number')?.value.trim() || '';
           wizardData.salvo_conduto = document.getElementById('w-salvo-conduto')?.value.trim() || '';
-          wizardData.court = document.getElementById('w-court')?.value.trim() || '';
+          wizardData.court = composeCourt(
+            document.getElementById('w-court-ordinal')?.value,
+            document.getElementById('w-court-type')?.value,
+            document.getElementById('w-court-uf')?.value
+          );
         }
         break;
     }
@@ -645,13 +671,13 @@ const Patient = (() => {
         if (!wizardData.via_type) { Toast.error('Selecione a via de acesso.'); return false; }
         if (wizardData.via_type === VIA.PHARMACY) {
           if (!wizardData.doctor_name) { Toast.error('Informe o nome do médico.'); return false; }
-          if (!wizardData.doctor_crm) { Toast.error('Informe o CRM do médico.'); return false; }
+          if (!wizardData.doctor_crm) { Toast.error('Informe o número do CRM e selecione a UF.'); return false; }
           if (!wizardData.prescription_validity) { Toast.error('Informe a validade da prescrição.'); return false; }
         }
         if (wizardData.via_type === VIA.HABEAS) {
           if (!wizardData.hc_number) { Toast.error('Informe o número do Habeas Corpus. Este campo é obrigatório.'); return false; }
           if (!wizardData.salvo_conduto) { Toast.error('Informe o número do Salvo Conduto. Este campo é obrigatório.'); return false; }
-          if (!wizardData.court) { Toast.error('Informe a Vara/Tribunal. Este campo é obrigatório.'); return false; }
+          if (!wizardData.court) { Toast.error('Selecione o número, o tipo e a UF da Vara/Tribunal.'); return false; }
         }
         return true;
       case 3: {
@@ -1116,6 +1142,63 @@ const Patient = (() => {
           cities.map(n => `<option value="${sanitizeHTML(n)}">${sanitizeHTML(n)}</option>`).join('') +
           `</optgroup>`;
       }).join('');
+  }
+
+  // ─── Padronização dos campos de CRM e Vara (selecionar em vez de digitar) ───
+  function ufOptionsHTML(selected) {
+    return Object.keys(UF_NAMES).sort().map(uf =>
+      `<option value="${uf}"${uf === selected ? ' selected' : ''}>${uf} — ${sanitizeHTML(UF_NAMES[uf])}</option>`
+    ).join('');
+  }
+
+  function ordinalOptionsHTML(selected) {
+    let out = '';
+    for (let i = 1; i <= 30; i++) {
+      out += `<option value="${i}"${String(i) === String(selected) ? ' selected' : ''}>${i}ª</option>`;
+    }
+    return out;
+  }
+
+  function courtTypeOptionsHTML(selected) {
+    return COURT_TYPES.map(t =>
+      `<option value="${t}"${t === selected ? ' selected' : ''}>${t}</option>`
+    ).join('');
+  }
+
+  // "CRM/SP 123456" → { uf, number } (tolerante a valores antigos)
+  function parseCrm(value) {
+    const v = (value || '').trim();
+    if (!v) return { uf: '', number: '' };
+    const uf = (v.toUpperCase().match(/\b([A-Z]{2})\b/) || [])[1] || '';
+    const number = (v.match(/(\d{3,})/) || [])[1] || '';
+    return { uf: UF_NAMES[uf] ? uf : '', number };
+  }
+  function composeCrm(number, uf) {
+    const n = (number || '').trim();
+    if (!n) return '';
+    return uf ? `CRM/${uf} ${n}` : n;
+  }
+
+  // "7ª Vara Federal — SC" → { ordinal, type, uf }. Também tenta ler textos
+  // antigos como "7 Vara Federal de Florianópolis" (deduz a UF pela cidade).
+  function parseCourt(value) {
+    const v = (value || '').trim();
+    if (!v) return { ordinal: '', type: '', uf: '' };
+    const ordinal = (v.match(/(\d{1,2})\s*[ªa]?/) || [])[1] || '';
+    const type = COURT_TYPES.find(t => v.toLowerCase().includes(t.toLowerCase())) || '';
+    let uf = (v.toUpperCase().match(/\b([A-Z]{2})\b/) || [])[1] || '';
+    if (!UF_NAMES[uf]) {
+      uf = '';
+      const lower = v.toLowerCase();
+      for (const c of Object.values(BRAZIL_CITIES)) {
+        if (lower.includes(c.name.toLowerCase())) { uf = c.uf; break; }
+      }
+    }
+    return { ordinal, type, uf };
+  }
+  function composeCourt(ordinal, type, uf) {
+    if (!ordinal || !type || !uf) return '';
+    return `${ordinal}ª ${type} — ${uf}`;
   }
 
   function renderViagem(container) {

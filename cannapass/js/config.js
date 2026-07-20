@@ -148,6 +148,18 @@ const UF_NAMES = Object.freeze({
 // quantidade passa a oferecer só as medidas que fazem sentido para ele.
 const PRODUCT_OPTIONS = Object.freeze(['Flor', 'Óleo', 'Concentrado', 'Outro']);
 
+// ─── Vara / Tribunal (padronização do campo judicial do habeas corpus) ───
+const COURT_TYPES = Object.freeze([
+  'Vara Federal',
+  'Vara Criminal',
+  'Vara Estadual',
+  'Vara de Execuções Penais',
+  'Juizado Especial Federal',
+  'Juizado Especial Criminal',
+  'Tribunal Regional Federal',
+  'Tribunal de Justiça'
+]);
+
 const QUANTITY_OPTIONS = Object.freeze({
   'Flor':        ['5 g', '10 g', '15 g', '20 g', '30 g', '50 g', '100 g'],
   'Óleo':        ['1 frasco (30ml)', '2 frascos (60ml)', '3 frascos (90ml)', '4 frascos (120ml)', '5 frascos (150ml)', '6 ou mais frascos'],
