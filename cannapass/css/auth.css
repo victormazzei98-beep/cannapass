@@ -106,7 +106,7 @@
 /* ─── Role Selector ─── */
 .auth-role-selector {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin-bottom: 24px;
 }
@@ -148,6 +148,11 @@
   border-color: var(--blue);
   color: var(--blue);
   background: var(--blue-soft);
+}
+.auth-role-btn.active.consultant {
+  border-color: #2dd4bf;
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.08);
 }
 
 /* ─── Error Message ─── */
